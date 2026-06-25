@@ -227,6 +227,111 @@ const departmentEmptyProjects =
     "#department-empty-projects"
   );
 
+const departmentPageTypes =
+  window.MANOR_DEPARTMENT_PAGE_TYPES ?? {};
+
+const manorSettings =
+  window.MANOR_SETTINGS ?? {
+    currencyCode: "USD",
+    locale: "en-US"
+  };
+
+const manorCurrencyCode =
+  manorSettings.currencyCode;
+
+const manorLocale =
+  manorSettings.locale;
+
+const recentIssueList =
+  document.querySelector("#recent-issue-list");
+
+const emptyRecentIssues =
+  document.querySelector("#empty-recent-issues");
+
+const operationalDepartmentView =
+  document.querySelector(
+    "#operational-department-view"
+  );
+
+const councilDepartmentView =
+  document.querySelector(
+    "#council-department-view"
+  );
+
+const chronicleDepartmentView =
+  document.querySelector(
+    "#chronicle-department-view"
+  );
+
+const treasuryDepartmentView =
+  document.querySelector(
+    "#treasury-department-view"
+  );
+
+const departmentCurrentList =
+  document.querySelector(
+    "#department-current-list"
+  );
+
+const departmentHistoryList =
+  document.querySelector(
+    "#department-history-list"
+  );
+
+const departmentEmptyCurrent =
+  document.querySelector(
+    "#department-empty-current"
+  );
+
+const departmentEmptyHistory =
+  document.querySelector(
+    "#department-empty-history"
+  );
+
+const issueMoneyInput =
+  document.querySelector("#issue-money");
+
+const issueMoneyLabel =
+  document.querySelector("#issue-money-label");
+
+const treasuryTotalMoney =
+  document.querySelector(
+    "#treasury-total-money"
+  );
+
+const treasuryMoneyPie =
+  document.querySelector(
+    "#treasury-money-pie"
+  );
+
+const treasuryMoneyLegend =
+  document.querySelector(
+    "#treasury-money-legend"
+  );
+
+const treasuryTimePie =
+  document.querySelector(
+    "#treasury-time-pie"
+  );
+
+const treasuryTimeLegend =
+  document.querySelector(
+    "#treasury-time-legend"
+  );
+
+const treasuryTimePeriod =
+  document.querySelector(
+    "#treasury-time-period"
+  );
+
+const treasuryScaleButtons =
+  document.querySelectorAll(
+    "[data-treasury-scale]"
+  );
+
+issueMoneyLabel.textContent =
+  `Money cost (${manorCurrencyCode})`;
+
 let issues = [];
 let projects = [];
 let editingProjectId = null;
@@ -352,6 +457,43 @@ function formatDate(dateString) {
   ).format(date);
 }
 
+function formatMoneyFromCents(value) {
+  const cents = Number(value) || 0;
+
+  return new Intl.NumberFormat(
+    manorLocale,
+    {
+      style: "currency",
+      currency: manorCurrencyCode
+    }
+  ).format(cents / 100);
+}
+
+function parseMoneyToCents(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  const amount = Number(value);
+
+  if (
+    !Number.isFinite(amount) ||
+    amount < 0
+  ) {
+    throw new Error(
+      "The money cost must be a valid non-negative amount."
+    );
+  }
+
+  return Math.round(
+    (amount + Number.EPSILON) * 100
+  );
+}
+
 function createTextElement(
   tag,
   className,
@@ -450,46 +592,60 @@ function getDepartmentIdFromHash() {
 }
 
 function createDepartmentIssueCard(issue) {
-  const card =
-    document.createElement("article");
+  const card = document.createElement("article");
 
-  card.className =
-    "department-record-card";
+  card.className = "department-record-card";
 
-  const durationText =
+  const metaParts = [
+    formatDate(issue.date)
+  ];
+
+  if (
     issue.duration !== null &&
     issue.duration !== undefined
-      ? ` · ${issue.duration} minutes`
-      : "";
+  ) {
+    metaParts.push(
+      `${issue.duration} minutes`
+    );
+  }
 
-  card.append(
-    createTextElement(
-      "p",
-      "department-record-meta",
-      `${formatDate(issue.date)}${durationText}`
-    )
-  );
-
-  card.append(
-    createTextElement(
-      "h3",
-      "",
-      issue.title
-    )
-  );
-
-  if (issue.description) {
-    card.append(
-      createTextElement(
-        "p",
-        "department-record-description",
-        issue.description
+  if (
+    Number(issue.moneyCostCents) > 0
+  ) {
+    metaParts.push(
+      formatMoneyFromCents(
+        issue.moneyCostCents
       )
     );
   }
 
-  const project =
-    getProjectById(issue.projectId);
+  const meta = createTextElement(
+    "p",
+    "department-record-meta",
+    metaParts.join(" · ")
+  );
+
+  const title = createTextElement(
+    "h3",
+    "",
+    issue.title
+  );
+
+  card.append(meta, title);
+
+  if (issue.description) {
+    const description = createTextElement(
+      "p",
+      "department-record-description",
+      issue.description
+    );
+
+    card.append(description);
+  }
+
+  const project = getProjectById(
+    issue.projectId
+  );
 
   const projectName =
     project?.name ||
@@ -497,16 +653,452 @@ function createDepartmentIssueCard(issue) {
     null;
 
   if (projectName) {
-    card.append(
-      createTextElement(
-        "p",
-        "department-record-project",
-        `Project: ${projectName}`
-      )
+    const projectElement = createTextElement(
+      "p",
+      "department-record-project",
+      `Project: ${projectName}`
     );
+
+    card.append(projectElement);
   }
 
   return card;
+}
+
+function projectStartSortValue(project) {
+  return (
+    project.startDate ||
+    project.createdAt ||
+    ""
+  );
+}
+
+function projectCompletionSortValue(project) {
+  return (
+    project.completedAt ||
+    project.updatedAt ||
+    ""
+  );
+}
+
+function renderOperationalDepartment(
+  department
+) {
+  const departmentIssues =
+    issues
+      .filter(
+        issue =>
+          issue.region === department.id
+      )
+      .sort((first, second) => {
+        const firstValue =
+          `${first.date}-${first.createdAt ?? ""}`;
+
+        const secondValue =
+          `${second.date}-${second.createdAt ?? ""}`;
+
+        return secondValue.localeCompare(
+          firstValue
+        );
+      });
+
+  const departmentProjects =
+    projects.filter(
+      project =>
+        project.region === department.id
+    );
+
+  const currentProjects =
+    departmentProjects
+      .filter(
+        project =>
+          project.status !== "completed"
+      )
+      .sort((first, second) =>
+        projectStartSortValue(
+          second
+        ).localeCompare(
+          projectStartSortValue(first)
+        )
+      );
+
+  const completedProjects =
+    departmentProjects
+      .filter(
+        project =>
+          project.status === "completed"
+      )
+      .sort((first, second) =>
+        projectCompletionSortValue(
+          second
+        ).localeCompare(
+          projectCompletionSortValue(
+            first
+          )
+        )
+      );
+
+  const totalMinutes =
+    departmentIssues.reduce(
+      (sum, issue) =>
+        sum +
+        (Number(issue.duration) || 0),
+      0
+    );
+
+  departmentActivityCount.textContent =
+    String(departmentIssues.length);
+
+  departmentTimeTotal.textContent =
+    String(totalMinutes);
+
+  departmentProjectCount.textContent =
+    String(currentProjects.length);
+
+  departmentCurrentList.replaceChildren();
+
+  departmentEmptyCurrent.hidden =
+    currentProjects.length > 0;
+
+  for (const project of currentProjects) {
+    departmentCurrentList.append(
+      createProjectCard(project)
+    );
+  }
+
+  departmentHistoryList.replaceChildren();
+
+  const hasHistory =
+    completedProjects.length > 0 ||
+    departmentIssues.length > 0;
+
+  departmentEmptyHistory.hidden =
+    hasHistory;
+
+  /*
+   * Completed projects deliberately appear
+   * before recorded issues.
+   */
+  for (
+    const project
+    of completedProjects
+  ) {
+    departmentHistoryList.append(
+      createProjectCard(project)
+    );
+  }
+
+  for (const issue of departmentIssues) {
+    departmentHistoryList.append(
+      createDepartmentIssueCard(issue)
+    );
+  }
+}
+
+const treasuryColors = [
+  "#7d2d2d",
+  "#a57a2f",
+  "#4e6a52",
+  "#51657e",
+  "#76567a",
+  "#9a5c3d",
+  "#3f7775",
+  "#7b704b"
+];
+
+let treasuryTimeScale = "week";
+
+function localDateString(date) {
+  const timezoneOffset =
+    date.getTimezoneOffset() * 60_000;
+
+  return new Date(
+    date.getTime() - timezoneOffset
+  )
+    .toISOString()
+    .slice(0, 10);
+}
+
+function getTreasuryDateRange(scale) {
+  const now = new Date();
+
+  const start = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  const end = new Date(start);
+
+  if (scale === "week") {
+    const daysSinceMonday =
+      (start.getDay() + 6) % 7;
+
+    start.setDate(
+      start.getDate() -
+      daysSinceMonday
+    );
+
+    end.setTime(start.getTime());
+    end.setDate(end.getDate() + 7);
+  } else {
+    start.setDate(1);
+
+    end.setTime(start.getTime());
+    end.setMonth(end.getMonth() + 1);
+  }
+
+  return {
+    start: localDateString(start),
+    end: localDateString(end)
+  };
+}
+
+function trackedDepartmentEntries(
+  metric,
+  range = null
+) {
+  const totals = new Map();
+
+  for (const department of departments) {
+    if (department.financeTracked) {
+      totals.set(department.id, 0);
+    }
+  }
+
+  for (const issue of issues) {
+    const department =
+      departmentMap[issue.region];
+
+    if (!department?.financeTracked) {
+      continue;
+    }
+
+    if (
+      range &&
+      (
+        issue.date < range.start ||
+        issue.date >= range.end
+      )
+    ) {
+      continue;
+    }
+
+    const value =
+      metric === "money"
+        ? Number(
+            issue.moneyCostCents
+          ) || 0
+        : Number(issue.duration) || 0;
+
+    totals.set(
+      department.id,
+      (totals.get(department.id) || 0) +
+      value
+    );
+  }
+
+  return departments
+    .filter(
+      department =>
+        department.financeTracked
+    )
+    .map((department, index) => ({
+      id: department.id,
+      name: department.shortName,
+      value:
+        totals.get(department.id) || 0,
+      color:
+        treasuryColors[
+          index %
+          treasuryColors.length
+        ]
+    }))
+    .filter(entry => entry.value > 0);
+}
+
+function renderTreasuryPie(
+  pieElement,
+  legendElement,
+  entries,
+  formatValue,
+  centerText
+) {
+  const total = entries.reduce(
+    (sum, entry) =>
+      sum + entry.value,
+    0
+  );
+
+  pieElement.replaceChildren();
+  legendElement.replaceChildren();
+
+  const center = createTextElement(
+    "span",
+    "treasury-pie-center",
+    centerText
+  );
+
+  pieElement.append(center);
+
+  if (total <= 0) {
+    pieElement.style.background =
+      "#ddd3bc";
+
+    legendElement.append(
+      createTextElement(
+        "p",
+        "office-empty",
+        "No expenditure has been recorded for this period."
+      )
+    );
+
+    return;
+  }
+
+  let cursor = 0;
+
+  const gradientParts =
+    entries.map(entry => {
+      const start = cursor;
+
+      cursor +=
+        (entry.value / total) * 100;
+
+      return (
+        `${entry.color} ` +
+        `${start}% ${cursor}%`
+      );
+    });
+
+  pieElement.style.background =
+    `conic-gradient(${
+      gradientParts.join(", ")
+    })`;
+
+  for (const entry of entries) {
+    const item =
+      document.createElement("div");
+
+    item.className =
+      "treasury-legend-item";
+
+    const swatch =
+      document.createElement("span");
+
+    swatch.className =
+      "treasury-legend-swatch";
+
+    swatch.style.backgroundColor =
+      entry.color;
+
+    const name = createTextElement(
+      "span",
+      "treasury-legend-name",
+      entry.name
+    );
+
+    const value = createTextElement(
+      "span",
+      "treasury-legend-value",
+      formatValue(entry.value)
+    );
+
+    item.append(
+      swatch,
+      name,
+      value
+    );
+
+    legendElement.append(item);
+  }
+}
+
+function renderTreasury() {
+  const moneyEntries =
+    trackedDepartmentEntries(
+      "money"
+    );
+
+  const totalMoney =
+    moneyEntries.reduce(
+      (sum, entry) =>
+        sum + entry.value,
+      0
+    );
+
+  treasuryTotalMoney.textContent =
+    formatMoneyFromCents(totalMoney);
+
+  renderTreasuryPie(
+    treasuryMoneyPie,
+    treasuryMoneyLegend,
+    moneyEntries,
+    formatMoneyFromCents,
+    formatMoneyFromCents(totalMoney)
+  );
+
+  const range =
+    getTreasuryDateRange(
+      treasuryTimeScale
+    );
+
+  const timeEntries =
+    trackedDepartmentEntries(
+      "time",
+      range
+    );
+
+  const totalMinutes =
+    timeEntries.reduce(
+      (sum, entry) =>
+        sum + entry.value,
+      0
+    );
+
+  const endDate = new Date(
+    `${range.end}T12:00:00`
+  );
+  
+  endDate.setDate(
+    endDate.getDate() - 1
+  );
+  
+  treasuryTimePeriod.textContent =
+    treasuryTimeScale === "week"
+      ? (
+          `Current week: ` +
+          `${formatDate(range.start)}–` +
+          `${new Intl.DateTimeFormat(
+            manorLocale,
+            {
+              month: "short",
+              day: "numeric"
+            }
+          ).format(endDate)}`
+        )
+      : (
+          `Current month beginning ` +
+          `${formatDate(range.start)}`
+        );
+  renderTreasuryPie(
+    treasuryTimePie,
+    treasuryTimeLegend,
+    timeEntries,
+    value => `${value} min`,
+    `${totalMinutes} min`
+  );
+
+  for (
+    const button
+    of treasuryScaleButtons
+  ) {
+    button.classList.toggle(
+      "is-active",
+      button.dataset.treasuryScale ===
+        treasuryTimeScale
+    );
+  }
 }
 
 function renderDepartmentPage() {
@@ -525,6 +1117,11 @@ function renderDepartmentPage() {
   manorHome.hidden = true;
   departmentPage.hidden = false;
 
+  operationalDepartmentView.hidden = true;
+  councilDepartmentView.hidden = true;
+  chronicleDepartmentView.hidden = true;
+  treasuryDepartmentView.hidden = true;
+
   departmentPageIcon.textContent =
     department.icon;
 
@@ -539,95 +1136,44 @@ function renderDepartmentPage() {
 
   departmentFinanceNote.textContent =
     department.financeTracked
-      ? "This department is included in Treasury money and time accounting."
-      : "This department is excluded from Treasury departmental accounting.";
-
-  const departmentIssues =
-    issues
-      .filter(
-        issue =>
-          issue.region === departmentId
-      )
-      .sort((first, second) => {
-        const firstValue =
-          `${first.date}-${first.createdAt ?? ""}`;
-
-        const secondValue =
-          `${second.date}-${second.createdAt ?? ""}`;
-
-        return secondValue.localeCompare(
-          firstValue
-        );
-      });
-
-  const currentProjects =
-    projects
-      .filter(project => {
-        if (project.status === "completed") {
-          return false;
-        }
-
-        if (
-          departmentId ===
-          "council-chamber"
-        ) {
-          return true;
-        }
-
-        return (
-          project.region === departmentId
-        );
-      })
-      .sort((first, second) =>
-        String(
-          second.updatedAt ?? ""
-        ).localeCompare(
-          String(first.updatedAt ?? "")
+      ? (
+          "This department is included in Treasury " +
+          "money and time accounting."
         )
-      );
+      : (
+          "This department is excluded from Treasury " +
+          "departmental accounting."
+        );
 
-  const totalMinutes =
-    departmentIssues.reduce(
-      (sum, issue) =>
-        sum + (Number(issue.duration) || 0),
-      0
-    );
+  const pageType =
+    departmentPageTypes[
+      department.id
+    ] || "operational";
 
-  departmentActivityCount.textContent =
-    String(departmentIssues.length);
+  if (pageType === "operational") {
+    operationalDepartmentView.hidden =
+      false;
 
-  departmentTimeTotal.textContent =
-    String(totalMinutes);
-
-  departmentProjectCount.textContent =
-    String(currentProjects.length);
-
-  departmentActivityList.replaceChildren();
-
-  departmentEmptyActivities.hidden =
-    departmentIssues.length > 0;
-
-  for (
-    const issue
-    of departmentIssues.slice(0, 12)
-  ) {
-    departmentActivityList.append(
-      createDepartmentIssueCard(issue)
+    renderOperationalDepartment(
+      department
     );
   }
 
-  departmentProjectList.replaceChildren();
+  if (pageType === "council") {
+    councilDepartmentView.hidden =
+      false;
+  }
 
-  departmentEmptyProjects.hidden =
-    currentProjects.length > 0;
+  if (pageType === "chronicle") {
+    chronicleDepartmentView.hidden =
+      false;
+  }
 
-  for (
-    const project
-    of currentProjects
-  ) {
-    departmentProjectList.append(
-      createProjectCard(project)
-    );
+  if (pageType === "treasury") {
+    treasuryDepartmentView.hidden =
+      false;
+
+    renderTreasury();
   }
 
   window.scrollTo({
@@ -717,162 +1263,191 @@ function updateIssueProjectOptions() {
   }
 }
 
+function createIssueCard(issue) {
+  const card =
+    document.createElement("article");
+
+  card.className = "issue-card";
+
+  const header =
+    document.createElement("div");
+
+  header.className =
+    "issue-card-header";
+
+  const headingContainer =
+    document.createElement("div");
+
+  const metaParts = [
+    regionNames[issue.region] ??
+      issue.region ??
+      "Unknown Department",
+
+    formatDate(issue.date)
+  ];
+
+  if (
+    issue.duration !== null &&
+    issue.duration !== undefined
+  ) {
+    metaParts.push(
+      `${issue.duration} minutes`
+    );
+  }
+
+  if (
+    Number(issue.moneyCostCents) > 0
+  ) {
+    metaParts.push(
+      formatMoneyFromCents(
+        issue.moneyCostCents
+      )
+    );
+  }
+
+  const meta = createTextElement(
+    "p",
+    "issue-meta",
+    metaParts.join(" · ")
+  );
+
+  const title = createTextElement(
+    "h3",
+    "",
+    issue.title
+  );
+
+  headingContainer.append(meta, title);
+
+  const project =
+    getProjectById(issue.projectId);
+
+  const projectName =
+    project?.name ||
+    issue.projectName ||
+    null;
+
+  if (projectName) {
+    headingContainer.append(
+      createTextElement(
+        "p",
+        "issue-project",
+        `Project: ${projectName}`
+      )
+    );
+  }
+
+  const deleteButton =
+    createTextElement(
+      "button",
+      "delete-button",
+      "Delete"
+    );
+
+  deleteButton.type = "button";
+
+  deleteButton.addEventListener(
+    "click",
+    async () => {
+      const confirmed =
+        window.confirm(
+          `Delete the issue “${issue.title}”?`
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      deleteButton.disabled = true;
+      deleteButton.textContent =
+        "Deleting...";
+
+      try {
+        await apiFetch(
+          `/api/issues?id=${
+            encodeURIComponent(issue.id)
+          }`,
+          {
+            method: "DELETE"
+          }
+        );
+
+        issues = issues.filter(
+          item => item.id !== issue.id
+        );
+
+        renderIssues();
+      } catch (error) {
+        window.alert(error.message);
+        deleteButton.disabled = false;
+        deleteButton.textContent =
+          "Delete";
+      }
+    }
+  );
+
+  header.append(
+    headingContainer,
+    deleteButton
+  );
+
+  card.append(header);
+
+  if (issue.description) {
+    card.append(
+      createTextElement(
+        "p",
+        "issue-description",
+        issue.description
+      )
+    );
+  }
+
+  return card;
+}
+
 function renderIssues() {
+  const sortedIssues = [...issues].sort(
+    (first, second) => {
+      const firstValue =
+        `${first.date}-${first.createdAt ?? ""}`;
+
+      const secondValue =
+        `${second.date}-${second.createdAt ?? ""}`;
+
+      return secondValue.localeCompare(
+        firstValue
+      );
+    }
+  );
+
+  issueList.replaceChildren();
+  recentIssueList.replaceChildren();
+
+  emptyIssues.hidden =
+    sortedIssues.length > 0;
+
+  const recentIssues =
+    sortedIssues.slice(0, 3);
+
+  emptyRecentIssues.hidden =
+    recentIssues.length > 0;
+
+  for (const issue of sortedIssues) {
+    issueList.append(
+      createIssueCard(issue)
+    );
+  }
+
+  for (const issue of recentIssues) {
+    recentIssueList.append(
+      createIssueCard(issue)
+    );
+  }
+
   queueMicrotask(
     refreshOpenDepartmentPage
   );
-  issueList.replaceChildren();
-
-  const sortedIssues = [...issues].sort(
-    (first, second) => {
-      const firstTime =
-        `${first.date}-${first.createdAt}`;
-
-      const secondTime =
-        `${second.date}-${second.createdAt}`;
-
-      return secondTime.localeCompare(
-        firstTime
-      );
-    }
-  );
-
-  if (sortedIssues.length === 0) {
-    emptyIssues.hidden = false;
-    emptyIssues.textContent =
-      "No issues have yet been recorded.";
-    return;
-  }
-
-  emptyIssues.hidden = true;
-
-  for (const issue of sortedIssues) {
-    const card =
-      document.createElement("article");
-
-    card.className = "issue-card";
-
-    const header =
-      document.createElement("div");
-
-    header.className =
-      "issue-card-header";
-
-    const headingContainer =
-      document.createElement("div");
-
-    const durationText =
-      issue.duration !== null &&
-      issue.duration !== undefined
-        ? ` · ${issue.duration} minutes`
-        : "";
-
-    const meta = createTextElement(
-      "p",
-      "issue-meta",
-      `${regionNames[issue.region] ??
-        issue.region ??
-        "Unknown Department"} · ` +
-      `${formatDate(issue.date)}` +
-      durationText
-    );
-
-    const title = createTextElement(
-      "h3",
-      "",
-      issue.title
-    );
-
-    headingContainer.append(meta, title);
-
-    const project =
-      getProjectById(issue.projectId);
-
-    const relatedProjectName =
-      project?.name ||
-      issue.projectName ||
-      null;
-
-    if (relatedProjectName) {
-      const projectText =
-        createTextElement(
-          "p",
-          "issue-project",
-          `Project: ${relatedProjectName}`
-        );
-
-      headingContainer.append(projectText);
-    }
-
-    const deleteButton =
-      createTextElement(
-        "button",
-        "delete-button",
-        "Delete"
-      );
-
-    deleteButton.type = "button";
-
-    deleteButton.addEventListener(
-      "click",
-      async () => {
-        const confirmed =
-          window.confirm(
-            `Delete the issue “${issue.title}”?`
-          );
-
-        if (!confirmed) {
-          return;
-        }
-
-        deleteButton.disabled = true;
-        deleteButton.textContent =
-          "Deleting...";
-
-        try {
-          await apiFetch(
-            `/api/issues?id=${
-              encodeURIComponent(issue.id)
-            }`,
-            {
-              method: "DELETE"
-            }
-          );
-
-          issues = issues.filter(
-            item => item.id !== issue.id
-          );
-
-          renderIssues();
-        } catch (error) {
-          window.alert(error.message);
-          deleteButton.disabled = false;
-          deleteButton.textContent =
-            "Delete";
-        }
-      }
-    );
-
-    header.append(
-      headingContainer,
-      deleteButton
-    );
-
-    card.append(header);
-
-    if (issue.description) {
-      const description =
-        createTextElement(
-          "p",
-          "issue-description",
-          issue.description
-        );
-
-      card.append(description);
-    }
-
-    issueList.append(card);
-  }
 }
 
 async function refreshIssues() {
@@ -967,6 +1542,22 @@ function createProjectCard(project) {
         "project-dates",
         dates.join(" · ")
       )
+    );
+  }
+
+  if (project.completedAt) {
+    const completedDate =
+      new Date(project.completedAt);
+  
+    dates.push(
+      `Completed ${new Intl.DateTimeFormat(
+        manorLocale,
+        {
+          year: "numeric",
+          month: "short",
+          day: "numeric"
+        }
+      ).format(completedDate)}`
     );
   }
 
@@ -1395,6 +1986,9 @@ async function migrateLegacyIssues() {
   const legacyIssues =
     readLegacyIssues();
 
+  moneyCostCents:
+    legacyIssue.moneyCostCents ?? 0,
+
   if (legacyIssues.length === 0) {
     localStorage.setItem(
       MIGRATION_STORAGE_KEY,
@@ -1581,6 +2175,11 @@ issueForm.addEventListener(
 
     const durationValue =
       issueDurationInput.value.trim();
+    
+    const moneyCostCents =
+      parseMoneyToCents(
+        issueMoneyInput.value.trim()
+      );
 
     if (!title) {
       return;
@@ -1614,6 +2213,7 @@ issueForm.addEventListener(
               duration: durationValue
                 ? Number(durationValue)
                 : null
+              moneyCostCents,
             })
           }
         );
@@ -1831,5 +2431,20 @@ window.addEventListener(
   "hashchange",
   routeManorView
 );
+
+for (
+  const button
+  of treasuryScaleButtons
+) {
+  button.addEventListener(
+    "click",
+    () => {
+      treasuryTimeScale =
+        button.dataset.treasuryScale;
+
+      renderTreasury();
+    }
+  );
+}
 
 startManor();
