@@ -357,6 +357,24 @@ export async function onRequestPut(context) {
       ? input.completedAt || now
       : null;
 
+  const existingTask = await context.env.DB
+    .prepare(`
+      SELECT created_at AS createdAt
+      FROM next_day_tasks
+      WHERE id = ?
+    `)
+    .bind(input.id)
+    .first();
+  
+  if (!existingTask) {
+    return jsonResponse(
+      {
+        error: "The task was not found."
+      },
+      404
+    );
+  }
+
   try {
     const result = await context.env.DB
       .prepare(`
@@ -398,6 +416,7 @@ export async function onRequestPut(context) {
         ...validation.task,
         projectName: project?.name ?? null,
         completedAt,
+        createdAt: existingTask.createdAt,
         updatedAt: now
       }
     });
