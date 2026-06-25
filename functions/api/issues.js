@@ -158,6 +158,7 @@ export async function onRequestGet(context) {
           activities.money_cost_cents AS moneyCostCents,
           activities.project_id AS projectId,
           activities.created_at AS createdAt,
+          activities.updated_at AS updatedAt,
           projects.name AS projectName
         FROM activities
         LEFT JOIN projects
@@ -225,10 +226,13 @@ export async function onRequestPost(context) {
     );
   }
 
+  const now = new Date().toISOString();
+
   const issue = {
     id: crypto.randomUUID(),
     ...validation.issue,
-    createdAt: new Date().toISOString()
+    createdAt: now,
+    updatedAt: now
   };
 
   try {
@@ -264,9 +268,10 @@ export async function onRequestPost(context) {
           duration,
           money_cost_cents,
           project_id,
-          created_at
+          created_at,
+          updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         issue.id,
@@ -277,7 +282,8 @@ export async function onRequestPost(context) {
         issue.duration,
         issue.moneyCostCents,
         issue.projectId,
-        issue.createdAt
+        issue.createdAt,
+        issue.updatedAt
       )
       .run();
 
@@ -293,6 +299,170 @@ export async function onRequestPost(context) {
     return jsonResponse(
       {
         error: "Could not save the manor record."
+      },
+      500
+    );
+  }
+}
+
+export async function onRequestPut(context) {
+  const unauthorized =
+    await requireSession(context);
+
+  if (unauthorized) {
+    return unauthorized;
+  }
+
+  if (!hasValidSameOrigin(context.request)) {
+    return jsonResponse(
+      {
+        error: "Invalid request origin."
+      },
+      403
+    );
+  }
+
+  let input;
+
+  try {
+    input = await context.request.json();
+  } catch {
+    return jsonResponse(
+      {
+        error:
+          "The request body must contain valid JSON."
+      },
+      400
+    );
+  }
+
+  const id =
+    typeof input.id === "string"
+      ? input.id.trim()
+      : "";
+
+  if (!id) {
+    return jsonResponse(
+      {
+        error: "An issue ID is required."
+      },
+      400
+    );
+  }
+
+  const validation = validateIssue(input);
+
+  if (!validation.valid) {
+    return jsonResponse(
+      {
+        error: validation.error
+      },
+      400
+    );
+  }
+
+  try {
+    const existingIssue =
+      await context.env.DB
+        .prepare(`
+          SELECT
+            id,
+            created_at AS createdAt
+          FROM activities
+          WHERE id = ?
+        `)
+        .bind(id)
+        .first();
+
+    if (!existingIssue) {
+      return jsonResponse(
+        {
+          error: "The issue was not found."
+        },
+        404
+      );
+    }
+
+    let projectName = null;
+
+    if (validation.issue.projectId) {
+      const project =
+        await context.env.DB
+          .prepare(`
+            SELECT
+              id,
+              name
+            FROM projects
+            WHERE id = ?
+          `)
+          .bind(
+            validation.issue.projectId
+          )
+          .first();
+
+      if (!project) {
+        return jsonResponse(
+          {
+            error:
+              "The selected project no longer exists."
+          },
+          400
+        );
+      }
+
+      projectName = project.name;
+    }
+
+    const updatedAt =
+      new Date().toISOString();
+
+    await context.env.DB
+      .prepare(`
+        UPDATE activities
+        SET
+          date = ?,
+          region = ?,
+          title = ?,
+          description = ?,
+          duration = ?,
+          money_cost_cents = ?,
+          project_id = ?,
+          updated_at = ?
+        WHERE id = ?
+      `)
+      .bind(
+        validation.issue.date,
+        validation.issue.region,
+        validation.issue.title,
+        validation.issue.description,
+        validation.issue.duration,
+        validation.issue.moneyCostCents,
+        validation.issue.projectId,
+        updatedAt,
+        id
+      )
+      .run();
+
+    return jsonResponse({
+      issue: {
+        id,
+        ...validation.issue,
+        projectName,
+        createdAt:
+          existingIssue.createdAt,
+        updatedAt
+      }
+    });
+  } catch (error) {
+    console.error(
+      "Could not update issue:",
+      error
+    );
+
+    return jsonResponse(
+      {
+        error:
+          "Could not update the manor record."
       },
       500
     );
