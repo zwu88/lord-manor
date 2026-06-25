@@ -744,6 +744,12 @@ function createProjectCard(project) {
         renderProjects();
         renderIssues();
         updateIssueProjectOptions();
+        
+        if (window.refreshEstateOffice) {
+          window.refreshEstateOffice().catch(
+            console.error
+          );
+        }
       } catch (error) {
         window.alert(error.message);
         deleteButton.disabled = false;
@@ -1116,6 +1122,10 @@ loginForm.addEventListener(
       await refreshProjects();
       await refreshIssues();
       await migrateLegacyIssues();
+
+      if (window.refreshEstateOffice) {
+        await window.refreshEstateOffice();
+      }
     } catch (error) {
       loginError.textContent =
         error.message;
@@ -1341,7 +1351,15 @@ projectForm.addEventListener(
       renderProjects();
       renderIssues();
       updateIssueProjectOptions();
+      
+      if (window.refreshEstateOffice) {
+        window.refreshEstateOffice().catch(
+          console.error
+        );
+      }
+      
       closeProjectDialog();
+      
     } catch (error) {
       window.alert(error.message);
     } finally {
@@ -1394,6 +1412,9 @@ async function startManor() {
     await refreshProjects();
     await refreshIssues();
     await migrateLegacyIssues();
+    if (window.refreshEstateOffice) {
+      await window.refreshEstateOffice();
+    }
   } catch (error) {
     console.error(error);
     showLoginScreen();
