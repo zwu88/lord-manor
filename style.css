@@ -915,3 +915,175 @@ dialog::backdrop {
     align-self: flex-start;
   }
 }
+
+.department-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.department-card:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.department-back-button {
+  margin-bottom: 28px;
+}
+
+.department-hero {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 36px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-top: 5px solid var(--gold);
+}
+
+.department-hero h1 {
+  margin: 7px 0 10px;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+}
+
+.department-page-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  color: var(--accent);
+  background: #eee4cf;
+  border: 1px solid var(--border);
+  font-size: 3.2rem;
+}
+
+.department-page-focus {
+  max-width: 750px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.department-statistics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 22px 0;
+}
+
+.department-statistics article {
+  padding: 23px;
+  text-align: center;
+  background: var(--paper);
+  border: 1px solid var(--border);
+}
+
+.department-statistics strong {
+  display: block;
+  color: var(--accent);
+  font-size: 2rem;
+}
+
+.department-statistics span {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.department-content-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.department-panel {
+  min-width: 0;
+  padding: 25px;
+  background: rgba(248, 243, 229, 0.72);
+  border: 1px solid var(--border);
+}
+
+.department-panel .section-heading {
+  margin-top: 0;
+}
+
+.department-record-list,
+.department-project-list {
+  display: grid;
+  gap: 14px;
+}
+
+.department-record-card {
+  padding: 19px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+}
+
+.department-record-card h3 {
+  margin: 5px 0 8px;
+  font-size: 1.15rem;
+}
+
+.department-record-meta {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.department-record-description {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.department-record-project {
+  margin: 10px 0 0;
+  color: var(--gold);
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.department-mandate {
+  margin-top: 22px;
+}
+
+.department-mandate > p:not(.label) {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.department-finance-note {
+  margin-bottom: 0;
+  padding-top: 13px;
+  border-top: 1px solid var(--border);
+  font-size: 0.88rem;
+  font-weight: bold;
+}
+
+@media (max-width: 850px) {
+  .department-content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .department-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .department-statistics {
+    grid-template-columns: 1fr;
+  }
+}
