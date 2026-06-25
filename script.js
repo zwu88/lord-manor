@@ -1,6 +1,5 @@
 const LEGACY_STORAGE_KEY = "lord-manor-issues-v1";
 const MIGRATION_STORAGE_KEY = "lord-manor-d1-migration-v1";
-const API_KEY_STORAGE_KEY = "lord-manor-api-key";
 
 const regionNames = {
   laboratory: "The Laboratory",
@@ -30,6 +29,27 @@ const issueDurationInput = document.querySelector("#issue-duration");
 const issueList = document.querySelector("#issue-list");
 const emptyIssues = document.querySelector("#empty-issues");
 
+const loginScreen =
+  document.querySelector("#login-screen");
+
+const loginForm =
+  document.querySelector("#login-form");
+
+const loginPasswordInput =
+  document.querySelector("#login-password");
+
+const loginError =
+  document.querySelector("#login-error");
+
+const loginButton =
+  document.querySelector("#login-button");
+
+const logoutButton =
+  document.querySelector("#logout-button");
+
+const manorApplication =
+  document.querySelector("#manor-application");
+
 let issues = [];
 
 const today = new Intl.DateTimeFormat("en-US", {
@@ -50,53 +70,34 @@ function getLocalDateString() {
     .slice(0, 10);
 }
 
-function getAccessKey() {
-  let accessKey = sessionStorage.getItem(
-    API_KEY_STORAGE_KEY
-  );
-
-  if (accessKey) {
-    return accessKey;
-  }
-
-  accessKey = window.prompt(
-    "Enter the private access key for your manor:"
-  );
-
-  if (!accessKey) {
-    throw new Error(
-      "The manor access key is required."
-    );
-  }
-
-  sessionStorage.setItem(
-    API_KEY_STORAGE_KEY,
-    accessKey
-  );
-
-  return accessKey;
-}
-
 async function apiFetch(path, options = {}) {
-  const accessKey = getAccessKey();
-  const headers = new Headers(options.headers || {});
-
-  headers.set(
-    "Authorization",
-    `Bearer ${accessKey}`
+  const headers = new Headers(
+    options.headers || {}
   );
 
-  if (options.body && !headers.has("Content-Type")) {
+  if (
+    options.body &&
+    !headers.has("Content-Type")
+  ) {
     headers.set(
       "Content-Type",
       "application/json"
     );
   }
 
-  const response = await fetch(path, {
-    ...options,
-    headers
-  });
+  const response = await fetch(
+    "/api/auth/login",
+    {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        password: loginPasswordInput.value
+      })
+    }
+  );
 
   let payload = null;
 
@@ -105,21 +106,11 @@ async function apiFetch(path, options = {}) {
   } catch {
     payload = null;
   }
-
-  if (response.status === 401) {
-    sessionStorage.removeItem(
-      API_KEY_STORAGE_KEY
-    );
-
-    throw new Error(
-      "The access key is incorrect. Refresh the page and try again."
-    );
-  }
-
+  
   if (!response.ok) {
     throw new Error(
       payload?.error ||
-      `The server returned status ${response.status}.`
+      `Login failed with status ${response.status}.`
     );
   }
 
@@ -462,18 +453,120 @@ issueDialog.addEventListener(
   }
 );
 
+function showLoginScreen() {
+  manorApplication.hidden = true;
+  loginScreen.hidden = false;
+  loginPasswordInput.focus();
+}
+
+function showManor() {
+  loginScreen.hidden = true;
+  manorApplication.hidden = false;
+}
+
+async function checkSession() {
+  const response = await fetch(
+    "/api/auth/session",
+    {
+      credentials: "same-origin",
+      cache: "no-store"
+    }
+  );
+
+  if (!response.ok) {
+    return false;
+  }
+
+  const payload = await response.json();
+
+  return payload.authenticated === true;
+}
+
+loginForm.addEventListener(
+  "submit",
+  async event => {
+    event.preventDefault();
+
+    loginError.hidden = true;
+    loginButton.disabled = true;
+    loginButton.textContent =
+      "Opening the Estate...";
+
+    try {
+      const response = await fetch(
+        "/api/auth/login",
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            password:
+              loginPasswordInput.value
+          })
+        }
+      );
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          payload.error ||
+          "Login failed."
+        );
+      }
+
+      loginPasswordInput.value = "";
+      showManor();
+      await refreshIssues();
+      await migrateLegacyIssues();
+    } catch (error) {
+      loginError.textContent =
+        error.message;
+
+      loginError.hidden = false;
+    } finally {
+      loginButton.disabled = false;
+      loginButton.textContent =
+        "Enter the Estate";
+    }
+  }
+);
+
+logoutButton.addEventListener(
+  "click",
+  async () => {
+    await fetch(
+      "/api/auth/logout",
+      {
+        method: "POST",
+        credentials: "same-origin"
+      }
+    );
+
+    issues = [];
+    renderIssues();
+    showLoginScreen();
+  }
+);
+
 async function startManor() {
   try {
+    const authenticated =
+      await checkSession();
+
+    if (!authenticated) {
+      showLoginScreen();
+      return;
+    }
+
+    showManor();
     await refreshIssues();
     await migrateLegacyIssues();
   } catch (error) {
     console.error(error);
-
-    emptyIssues.hidden = false;
-    emptyIssues.textContent =
-      "The Chronicle Archive could not be opened.";
-
-    window.alert(error.message);
+    showLoginScreen();
   }
 }
 
