@@ -181,6 +181,13 @@
             <option value="council-chamber">The Council Chamber</option>
           </select>
         </label>
+
+        <label>
+          Related project
+          <select id="issue-project">
+            <option value="">No related project</option>
+          </select>
+        </label>
     
         <label>
           Title
@@ -225,6 +232,193 @@
         </div>
       </form>
     </dialog>
+
+    <dialog id="project-dialog">
+      <form id="project-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="label">Council record</p>
+            <h2 id="project-dialog-title">
+              Establish a Project
+            </h2>
+          </div>
+    
+          <button
+            id="close-project-dialog"
+            class="close-button"
+            type="button"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+    
+        <label>
+          Project name
+          <input
+            id="project-name"
+            type="text"
+            maxlength="150"
+            placeholder="Develop the Lord Manor system"
+            required
+          >
+        </label>
+    
+        <label>
+          Principal region
+          <select id="project-region" required>
+            <option value="laboratory">
+              The Laboratory
+            </option>
+            <option value="academy">
+              The Academy
+            </option>
+            <option value="great-hall">
+              The Great Hall
+            </option>
+            <option value="map-room">
+              The Map Room
+            </option>
+            <option value="training-ground">
+              The Training Ground
+            </option>
+            <option value="gallery">
+              The Gallery
+            </option>
+            <option value="council-chamber">
+              The Council Chamber
+            </option>
+          </select>
+        </label>
+    
+        <label>
+          Objective
+          <textarea
+            id="project-objective"
+            rows="4"
+            maxlength="3000"
+            placeholder="What should this project accomplish?"
+          ></textarea>
+        </label>
+    
+        <div class="form-grid">
+          <label>
+            Status
+            <select id="project-status">
+              <option value="proposed">Proposed</option>
+              <option value="active" selected>Active</option>
+              <option value="suspended">Suspended</option>
+              <option value="completed">Completed</option>
+            </select>
+          </label>
+    
+          <label>
+            Progress
+            <div class="progress-input">
+              <input
+                id="project-progress"
+                type="number"
+                min="0"
+                max="100"
+                value="0"
+                required
+              >
+              <span>%</span>
+            </div>
+          </label>
+        </div>
+    
+        <div class="form-grid">
+          <label>
+            Start date
+            <input
+              id="project-start-date"
+              type="date"
+            >
+          </label>
+    
+          <label>
+            Target date
+            <input
+              id="project-target-date"
+              type="date"
+            >
+          </label>
+        </div>
+    
+        <label>
+          Next action
+          <textarea
+            id="project-next-action"
+            rows="3"
+            maxlength="1000"
+            placeholder="What is the next concrete action?"
+          ></textarea>
+        </label>
+    
+        <label>
+          Council notes
+          <textarea
+            id="project-notes"
+            rows="4"
+            maxlength="5000"
+            placeholder="Additional plans, decisions, or concerns"
+          ></textarea>
+        </label>
+    
+        <div class="form-actions">
+          <button
+            id="cancel-project"
+            class="secondary-button"
+            type="button"
+          >
+            Cancel
+          </button>
+    
+          <button
+            id="save-project-button"
+            type="submit"
+          >
+            Seal the Project
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <section
+      id="council-chamber"
+      class="projects-section"
+    >
+      <div class="section-heading project-heading">
+        <div>
+          <p class="label">The Council Chamber</p>
+          <h2>Projects and Campaigns</h2>
+          <p class="section-description">
+            Govern the manor's long-term plans, milestones,
+            deadlines, and next actions.
+          </p>
+        </div>
+    
+        <button
+          id="new-project-button"
+          type="button"
+        >
+          Establish a Project
+        </button>
+      </div>
+    
+      <p
+        id="empty-projects"
+        class="empty-state"
+      >
+        No projects have yet been established.
+      </p>
+    
+      <div
+        id="project-board"
+        class="project-board"
+      ></div>
+    </section>
 
     <section class="chronicle">
       <div class="section-heading">
