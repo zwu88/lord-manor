@@ -89,6 +89,99 @@
       </div>
     </section>
 
+    <section class="issues-section">
+      <div class="section-heading">
+        <p class="label">The Chronicle Archive</p>
+        <h2>Recent Issues of the Manor</h2>
+      </div>
+    
+      <p id="empty-issues" class="empty-state">
+        No issues have yet been recorded.
+      </p>
+    
+      <div id="issue-list" class="issue-list"></div>
+    </section>
+    
+    <dialog id="issue-dialog">
+      <form id="issue-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="label">New entry</p>
+            <h2>Record an Issue</h2>
+          </div>
+    
+          <button
+            type="button"
+            id="close-dialog"
+            class="close-button"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+    
+        <label>
+          Date
+          <input id="issue-date" type="date" required>
+        </label>
+    
+        <label>
+          Region
+          <select id="issue-region" required>
+            <option value="laboratory">The Laboratory</option>
+            <option value="academy">The Academy</option>
+            <option value="great-hall">The Great Hall</option>
+            <option value="map-room">The Map Room</option>
+            <option value="training-ground">The Training Ground</option>
+            <option value="gallery">The Gallery</option>
+            <option value="council-chamber">The Council Chamber</option>
+          </select>
+        </label>
+    
+        <label>
+          Title
+          <input
+            id="issue-title"
+            type="text"
+            maxlength="120"
+            placeholder="Completed the first experiment"
+            required
+          >
+        </label>
+    
+        <label>
+          Description
+          <textarea
+            id="issue-description"
+            rows="5"
+            maxlength="1500"
+            placeholder="What happened, what was achieved, and what remains to be done?"
+          ></textarea>
+        </label>
+    
+        <label>
+          Duration in minutes
+          <input
+            id="issue-duration"
+            type="number"
+            min="0"
+            max="1440"
+            placeholder="60"
+          >
+        </label>
+    
+        <div class="form-actions">
+          <button type="button" id="cancel-issue" class="secondary-button">
+            Cancel
+          </button>
+    
+          <button type="submit">
+            Seal the Record
+          </button>
+        </div>
+      </form>
+    </dialog>
+
     <section class="chronicle">
       <div class="section-heading">
         <p class="label">Latest dispatch</p>
