@@ -128,3 +128,22 @@ window.MANOR_LEGACY_DEPARTMENT_MAP = Object.freeze({
   "map-room": "travel-department",
   "council-chamber": "council-chamber"
 });
+
+window.MANOR_SETTINGS = Object.freeze({
+  currencyCode: "USD",
+  locale: "en-US"
+});
+
+window.MANOR_DEPARTMENT_PAGE_TYPES = Object.freeze({
+  "research-institute": "operational",
+  academy: "operational",
+  "health-commission": "operational",
+  "household-affairs": "operational",
+  "music-department": "operational",
+  "external-relations": "operational",
+  "travel-department": "operational",
+
+  "council-chamber": "council",
+  "chronicle-department": "chronicle",
+  "treasury-office": "treasury"
+});
