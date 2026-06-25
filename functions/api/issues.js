@@ -45,6 +45,13 @@ function validateIssue(input) {
       ? null
       : Number(input.duration);
 
+  const moneyCostCents =
+    input.moneyCostCents === null ||
+    input.moneyCostCents === undefined ||
+    input.moneyCostCents === ""
+      ? 0
+      : Number(input.moneyCostCents);
+
   const projectId =
     input.projectId === null ||
     input.projectId === undefined ||
@@ -97,6 +104,18 @@ function validateIssue(input) {
     };
   }
 
+  if (
+    !Number.isInteger(moneyCostCents) ||
+    moneyCostCents < 0 ||
+    moneyCostCents > 100_000_000_000
+  ) {
+    return {
+      valid: false,
+      error:
+        "The money cost must be a valid non-negative amount."
+    };
+  }
+
   if (projectId !== null && projectId.length > 100) {
     return {
       valid: false,
@@ -112,6 +131,7 @@ function validateIssue(input) {
       title,
       description,
       duration,
+      moneyCostCents,
       projectId
     }
   };
@@ -135,6 +155,7 @@ export async function onRequestGet(context) {
           activities.title,
           activities.description,
           activities.duration,
+          activities.money_cost_cents AS moneyCostCents,
           activities.project_id AS projectId,
           activities.created_at AS createdAt,
           projects.name AS projectName
@@ -241,10 +262,11 @@ export async function onRequestPost(context) {
           title,
           description,
           duration,
+          money_cost_cents,
           project_id,
           created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         issue.id,
@@ -253,6 +275,7 @@ export async function onRequestPost(context) {
         issue.title,
         issue.description,
         issue.duration,
+        issue.moneyCostCents,
         issue.projectId,
         issue.createdAt
       )
