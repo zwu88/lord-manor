@@ -93,16 +93,34 @@
     </section>
 
     <section class="issues-section">
-      <div class="section-heading">
-        <p class="label">The Chronicle Archive</p>
-        <h2>Recent Issues of the Manor</h2>
+      <div class="section-heading heading-with-action">
+        <div>
+          <p class="label">The Chronicle Archive</p>
+          <h2>Recent Issues of the Manor</h2>
+          <p class="section-description">
+            The three latest recorded affairs of the estate.
+          </p>
+        </div>
+    
+        <a
+          href="#department/chronicle-department"
+          class="text-action-link"
+        >
+          Open the Complete Archive →
+        </a>
       </div>
     
-      <p id="empty-issues" class="empty-state">
+      <p
+        id="empty-recent-issues"
+        class="empty-state"
+      >
         No issues have yet been recorded.
       </p>
     
-      <div id="issue-list" class="issue-list"></div>
+      <div
+        id="recent-issue-list"
+        class="issue-list"
+      ></div>
     </section>
     
     <dialog id="issue-dialog">
@@ -167,16 +185,32 @@
           ></textarea>
         </label>
     
-        <label>
-          Duration in minutes
-          <input
-            id="issue-duration"
-            type="number"
-            min="0"
-            max="1440"
-            placeholder="60"
-          >
-        </label>
+        <div class="form-grid">
+          <label>
+            Duration in minutes
+            <input
+              id="issue-duration"
+              type="number"
+              min="0"
+              max="1440"
+              placeholder="60"
+            >
+          </label>
+        
+          <label>
+            <span id="issue-money-label">
+              Money cost
+            </span>
+        
+            <input
+              id="issue-money"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+            >
+          </label>
+        </div>
     
         <div class="form-actions">
           <button type="button" id="cancel-issue" class="secondary-button">
@@ -472,41 +506,6 @@
     </dialog>
 
     <section
-      id="council-chamber"
-      class="projects-section"
-    >
-      <div class="section-heading project-heading">
-        <div>
-          <p class="label">The Council Chamber</p>
-          <h2>Projects and Campaigns</h2>
-          <p class="section-description">
-            Govern the manor's long-term plans, milestones,
-            deadlines, and next actions.
-          </p>
-        </div>
-    
-        <button
-          id="new-project-button"
-          type="button"
-        >
-          Establish a Project
-        </button>
-      </div>
-    
-      <p
-        id="empty-projects"
-        class="empty-state"
-      >
-        No projects have yet been established.
-      </p>
-    
-      <div
-        id="project-board"
-        class="project-board"
-      ></div>
-    </section>
-
-    <section
       id="estate-office"
       class="estate-office-section"
     >
@@ -620,7 +619,6 @@
   
       <div>
         <p class="label">Department record</p>
-  
         <h1 id="department-page-name"></h1>
   
         <p
@@ -630,66 +628,245 @@
       </div>
     </section>
   
-    <section class="department-statistics">
-      <article>
-        <strong id="department-activity-count">0</strong>
-        <span>Recorded issues</span>
-      </article>
+    <!-- Operational departments -->
   
-      <article>
-        <strong id="department-time-total">0</strong>
-        <span>Recorded minutes</span>
-      </article>
+    <section
+      id="operational-department-view"
+      hidden
+    >
+      <section class="department-statistics">
+        <article>
+          <strong id="department-activity-count">
+            0
+          </strong>
+          <span>Recorded issues</span>
+        </article>
   
-      <article>
-        <strong id="department-project-count">0</strong>
-        <span>Current projects</span>
-      </article>
+        <article>
+          <strong id="department-time-total">
+            0
+          </strong>
+          <span>Recorded minutes</span>
+        </article>
+  
+        <article>
+          <strong id="department-project-count">
+            0
+          </strong>
+          <span>Current projects</span>
+        </article>
+      </section>
+  
+      <div class="department-view-stack">
+        <section class="department-panel">
+          <div class="section-heading">
+            <p class="label">Present administration</p>
+            <h2>Current Affairs</h2>
+  
+            <p class="section-description">
+              Ongoing and proposed projects, with the most
+              recently started projects first.
+            </p>
+          </div>
+  
+          <p
+            id="department-empty-current"
+            class="office-empty"
+          >
+            No current affairs are recorded.
+          </p>
+  
+          <div
+            id="department-current-list"
+            class="department-project-list"
+          ></div>
+        </section>
+  
+        <section class="department-panel">
+          <div class="section-heading">
+            <p class="label">Historical record</p>
+            <h2>Completed Record</h2>
+  
+            <p class="section-description">
+              Completed projects followed by recorded issues,
+              with the latest conclusions first.
+            </p>
+          </div>
+  
+          <p
+            id="department-empty-history"
+            class="office-empty"
+          >
+            No completed affairs are recorded.
+          </p>
+  
+          <div
+            id="department-history-list"
+            class="department-record-list"
+          ></div>
+        </section>
+      </div>
     </section>
   
-    <div class="department-content-grid">
-      <section class="department-panel">
-        <div class="section-heading">
-          <p class="label">Recent record</p>
-          <h2>What Has Happened</h2>
+    <!-- Council Chamber -->
+  
+    <section
+      id="council-department-view"
+      hidden
+    >
+      <div class="section-heading project-heading">
+        <div>
+          <p class="label">The Council Chamber</p>
+          <h2>Projects and Campaigns</h2>
+  
+          <p class="section-description">
+            Govern the manor's long-term projects, milestones,
+            deadlines, and next actions.
+          </p>
         </div>
   
-        <p
-          id="department-empty-activities"
-          class="office-empty"
+        <button
+          id="new-project-button"
+          type="button"
         >
-          No affairs have yet been recorded.
-        </p>
+          Establish a Project
+        </button>
+      </div>
   
-        <div
-          id="department-activity-list"
-          class="department-record-list"
-        ></div>
+      <p
+        id="empty-projects"
+        class="empty-state"
+      >
+        No projects have yet been established.
+      </p>
+  
+      <div
+        id="project-board"
+        class="project-board council-project-board"
+      ></div>
+    </section>
+  
+    <!-- Chronicle Department -->
+  
+    <section
+      id="chronicle-department-view"
+      hidden
+    >
+      <div class="section-heading">
+        <p class="label">The complete record</p>
+        <h2>All Issues of the Manor</h2>
+  
+        <p class="section-description">
+          The complete chronological archive of recorded affairs
+          from every department.
+        </p>
+      </div>
+  
+      <p
+        id="empty-issues"
+        class="empty-state"
+      >
+        No issues have yet been recorded.
+      </p>
+  
+      <div
+        id="issue-list"
+        class="issue-list"
+      ></div>
+    </section>
+  
+    <!-- Treasury -->
+  
+    <section
+      id="treasury-department-view"
+      hidden
+    >
+      <section class="treasury-total-card">
+        <p class="label">Recorded expenditure</p>
+        <h2>Total Money Cost</h2>
+  
+        <strong id="treasury-total-money">
+          $0.00
+        </strong>
+  
+        <p>
+          Total recorded expenditure across departments included
+          in Treasury accounting.
+        </p>
       </section>
   
-      <section class="department-panel">
-        <div class="section-heading">
-          <p class="label">Current administration</p>
-          <h2>What Is Happening</h2>
-        </div>
+      <div class="treasury-chart-stack">
+        <section class="treasury-chart-panel">
+          <div class="section-heading">
+            <p class="label">Money distribution</p>
+            <h2>Expenditure by Department</h2>
   
-        <p
-          id="department-empty-projects"
-          class="office-empty"
-        >
-          No current projects are assigned here.
-        </p>
+            <p class="section-description">
+              Distribution of all recorded money expenditure.
+            </p>
+          </div>
   
-        <div
-          id="department-project-list"
-          class="department-project-list"
-        ></div>
-      </section>
-    </div>
+          <div class="treasury-chart-layout">
+            <div
+              id="treasury-money-pie"
+              class="treasury-pie"
+            ></div>
+  
+            <div
+              id="treasury-money-legend"
+              class="treasury-legend"
+            ></div>
+          </div>
+        </section>
+  
+        <section class="treasury-chart-panel">
+          <div class="section-heading heading-with-action">
+            <div>
+              <p class="label">Time distribution</p>
+              <h2>Time Cost by Department</h2>
+  
+              <p
+                id="treasury-time-period"
+                class="section-description"
+              ></p>
+            </div>
+  
+            <div class="treasury-scale-controls">
+              <button
+                type="button"
+                class="treasury-scale-button is-active"
+                data-treasury-scale="week"
+              >
+                This Week
+              </button>
+  
+              <button
+                type="button"
+                class="treasury-scale-button"
+                data-treasury-scale="month"
+              >
+                This Month
+              </button>
+            </div>
+          </div>
+  
+          <div class="treasury-chart-layout">
+            <div
+              id="treasury-time-pie"
+              class="treasury-pie"
+            ></div>
+  
+            <div
+              id="treasury-time-legend"
+              class="treasury-legend"
+            ></div>
+          </div>
+        </section>
+      </div>
+    </section>
   
     <section class="department-panel department-mandate">
       <p class="label">Department mandate</p>
-  
       <p id="department-page-mandate"></p>
   
       <p
