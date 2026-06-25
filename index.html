@@ -385,6 +385,154 @@
       </form>
     </dialog>
 
+    <dialog id="task-dialog">
+      <form id="task-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="label">Estate order</p>
+            <h2 id="task-dialog-title">
+              Prepare Tomorrow's Order
+            </h2>
+            <p
+              id="task-dialog-date"
+              class="dialog-date"
+            ></p>
+          </div>
+    
+          <button
+            id="close-task-dialog"
+            class="close-button"
+            type="button"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+    
+        <label>
+          Task
+          <input
+            id="task-title"
+            type="text"
+            maxlength="200"
+            placeholder="Complete the experiment analysis"
+            required
+          >
+        </label>
+    
+        <label>
+          Related project
+          <select id="task-project">
+            <option value="">No related project</option>
+          </select>
+        </label>
+    
+        <label>
+          Details
+          <textarea
+            id="task-description"
+            rows="4"
+            maxlength="2000"
+            placeholder="What specifically should be completed tomorrow?"
+          ></textarea>
+        </label>
+    
+        <div class="form-actions">
+          <button
+            id="cancel-task"
+            class="secondary-button"
+            type="button"
+          >
+            Cancel
+          </button>
+    
+          <button
+            id="save-task-button"
+            type="submit"
+          >
+            Seal the Order
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="milestone-dialog">
+      <form id="milestone-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="label">Project checkpoint</p>
+            <h2 id="milestone-dialog-title">
+              Establish a Milestone
+            </h2>
+          </div>
+    
+          <button
+            id="close-milestone-dialog"
+            class="close-button"
+            type="button"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+    
+        <label>
+          Project
+          <select
+            id="milestone-project"
+            required
+          ></select>
+        </label>
+    
+        <label>
+          Milestone
+          <input
+            id="milestone-title"
+            type="text"
+            maxlength="200"
+            placeholder="Complete the first working prototype"
+            required
+          >
+        </label>
+    
+        <label>
+          Target date
+          <input
+            id="milestone-target-date"
+            type="date"
+            required
+          >
+        </label>
+    
+        <label>
+          Notes
+          <textarea
+            id="milestone-notes"
+            rows="4"
+            maxlength="3000"
+            placeholder="Conditions for considering this milestone achieved"
+          ></textarea>
+        </label>
+    
+        <div class="form-actions">
+          <button
+            id="cancel-milestone"
+            class="secondary-button"
+            type="button"
+          >
+            Cancel
+          </button>
+    
+          <button
+            id="save-milestone-button"
+            type="submit"
+          >
+            Seal the Milestone
+          </button>
+        </div>
+      </form>
+    </dialog>
+
     <section
       id="council-chamber"
       class="projects-section"
@@ -420,6 +568,82 @@
       ></div>
     </section>
 
+    <section
+      id="estate-office"
+      class="estate-office-section"
+    >
+      <div class="section-heading">
+        <p class="label">The Estate Office</p>
+        <h2>Orders and Milestones</h2>
+        <p class="section-description">
+          Prepare tomorrow's duties and govern the principal
+          checkpoints of the manor's projects.
+        </p>
+      </div>
+    
+      <div class="estate-office-grid">
+        <section class="office-panel">
+          <div class="office-panel-heading">
+            <div>
+              <p class="label">Tomorrow's orders</p>
+              <h3>Next-Day Tasks</h3>
+              <p
+                id="tomorrow-date"
+                class="office-date"
+              ></p>
+            </div>
+    
+            <button
+              id="new-task-button"
+              type="button"
+            >
+              Add an Order
+            </button>
+          </div>
+    
+          <p
+            id="empty-tasks"
+            class="office-empty"
+          >
+            No orders have been prepared for tomorrow.
+          </p>
+    
+          <div
+            id="tomorrow-task-list"
+            class="office-list"
+          ></div>
+        </section>
+    
+        <section class="office-panel">
+          <div class="office-panel-heading">
+            <div>
+              <p class="label">Project governance</p>
+              <h3>Project Milestones</h3>
+            </div>
+    
+            <button
+              id="new-milestone-button"
+              type="button"
+            >
+              Add a Milestone
+            </button>
+          </div>
+    
+          <p
+            id="empty-milestones"
+            class="office-empty"
+          >
+            No project milestones have been established.
+          </p>
+    
+          <div
+            id="milestone-list"
+            class="milestone-list"
+          ></div>
+        </section>
+      </div>
+    </section>
+
     <section class="chronicle">
       <div class="section-heading">
         <p class="label">Latest dispatch</p>
@@ -444,5 +668,6 @@
 </div>
 
 <script src="script.js"></script>
+<script src="estate-office.js"></script>
 </body>
 </html>
