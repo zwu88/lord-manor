@@ -1,17 +1,11 @@
 import {
+  VALID_DEPARTMENTS
+} from "../_lib/departments.js";
+
+import {
   hasValidSameOrigin,
   requireSession
 } from "../_lib/auth.js";
-
-const VALID_REGIONS = new Set([
-  "laboratory",
-  "academy",
-  "great-hall",
-  "map-room",
-  "training-ground",
-  "gallery",
-  "council-chamber"
-]);
 
 const VALID_STATUSES = new Set([
   "proposed",
@@ -101,10 +95,10 @@ function validateProject(input) {
       };
     }
 
-    if (!VALID_REGIONS.has(region)) {
+    if (!VALID_DEPARTMENTS.has(region)) {
       return {
         valid: false,
-        error: "Invalid project region."
+        error: "Invalid responsible department."
       };
     }
 
