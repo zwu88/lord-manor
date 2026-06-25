@@ -3,15 +3,9 @@ import {
   requireSession
 } from "../_lib/auth.js";
 
-const VALID_REGIONS = new Set([
-  "laboratory",
-  "academy",
-  "great-hall",
-  "map-room",
-  "training-ground",
-  "gallery",
-  "council-chamber"
-]);
+import {
+  VALID_DEPARTMENTS
+} from "../_lib/departments.js";
 
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -65,10 +59,10 @@ function validateIssue(input) {
     };
   }
 
-  if (!VALID_REGIONS.has(region)) {
+  if (!VALID_DEPARTMENTS.has(region)) {
     return {
       valid: false,
-      error: "The selected manor region is invalid."
+      error: "The selected manor department is invalid."
     };
   }
 
