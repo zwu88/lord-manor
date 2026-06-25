@@ -61,7 +61,7 @@
     </button>
   </header>
 
-  <main>
+  <main id="manor-home">
     <section class="welcome-panel">
       <div>
         <p class="label">Current state of the manor</p>
@@ -78,59 +78,18 @@
 
     <section>
       <div class="section-heading">
-        <p class="label">The estate</p>
-        <h2>Regions of the Manor</h2>
+        <p class="label">The administration</p>
+        <h2>Departments of the Manor</h2>
+        <p class="section-description">
+          Enter a department to review its recent affairs,
+          current projects, and governing purpose.
+        </p>
       </div>
 
-      <div class="region-grid">
-        <article class="region-card">
-          <span class="icon">⚗</span>
-          <h3>The Laboratory</h3>
-          <p>Research, experiments, papers, and code.</p>
-        </article>
-
-        <article class="region-card">
-          <span class="icon">📚</span>
-          <h3>The Academy</h3>
-          <p>Courses, reading, study, and intellectual training.</p>
-        </article>
-
-        <article class="region-card">
-          <span class="icon">🏛</span>
-          <h3>The Great Hall</h3>
-          <p>Meetings, networking, correspondence, and visitors.</p>
-        </article>
-
-        <article class="region-card">
-          <span class="icon">🗺</span>
-          <h3>The Map Room</h3>
-          <p>Travel, journeys, destinations, and discoveries.</p>
-        </article>
-
-        <article class="region-card">
-          <span class="icon">⚔</span>
-          <h3>The Training Ground</h3>
-          <p>Exercise, running, cycling, and physical discipline.</p>
-        </article>
-
-        <article class="region-card">
-          <span class="icon">🎼</span>
-          <h3>The Gallery</h3>
-          <p>Music, art, concerts, and creative work.</p>
-        </article>
-
-        <article class="region-card">
-          <span class="icon">📜</span>
-          <h3>The Council Chamber</h3>
-          <p>Projects, campaigns, milestones, and future plans.</p>
-        </article>
-
-        <article class="region-card">
-          <span class="icon">📰</span>
-          <h3>The Printing House</h3>
-          <p>Daily chronicles and periodic newspapers.</p>
-        </article>
-      </div>
+      <div
+        id="department-grid"
+        class="region-grid"
+      ></div>
     </section>
 
     <section class="issues-section">
@@ -171,15 +130,13 @@
     
         <label>
           Region
-          <select id="issue-region" required>
-            <option value="laboratory">The Laboratory</option>
-            <option value="academy">The Academy</option>
-            <option value="great-hall">The Great Hall</option>
-            <option value="map-room">The Map Room</option>
-            <option value="training-ground">The Training Ground</option>
-            <option value="gallery">The Gallery</option>
-            <option value="council-chamber">The Council Chamber</option>
-          </select>
+          <label>
+            Department
+            <select
+              id="issue-region"
+              required
+            ></select>
+          </label>
         </label>
 
         <label>
@@ -265,30 +222,11 @@
         </label>
     
         <label>
-          Principal region
-          <select id="project-region" required>
-            <option value="laboratory">
-              The Laboratory
-            </option>
-            <option value="academy">
-              The Academy
-            </option>
-            <option value="great-hall">
-              The Great Hall
-            </option>
-            <option value="map-room">
-              The Map Room
-            </option>
-            <option value="training-ground">
-              The Training Ground
-            </option>
-            <option value="gallery">
-              The Gallery
-            </option>
-            <option value="council-chamber">
-              The Council Chamber
-            </option>
-          </select>
+          Responsible department
+          <select
+            id="project-region"
+            required
+          ></select>
         </label>
     
         <label>
@@ -662,12 +600,112 @@
     </section>
   </main>
 
+  <main
+    id="department-page"
+    hidden
+  >
+    <button
+      id="department-back-button"
+      class="secondary-button department-back-button"
+      type="button"
+    >
+      ← Return to the Manor
+    </button>
+  
+    <section class="department-hero">
+      <span
+        id="department-page-icon"
+        class="department-page-icon"
+      ></span>
+  
+      <div>
+        <p class="label">Department record</p>
+  
+        <h1 id="department-page-name"></h1>
+  
+        <p
+          id="department-page-focus"
+          class="department-page-focus"
+        ></p>
+      </div>
+    </section>
+  
+    <section class="department-statistics">
+      <article>
+        <strong id="department-activity-count">0</strong>
+        <span>Recorded issues</span>
+      </article>
+  
+      <article>
+        <strong id="department-time-total">0</strong>
+        <span>Recorded minutes</span>
+      </article>
+  
+      <article>
+        <strong id="department-project-count">0</strong>
+        <span>Current projects</span>
+      </article>
+    </section>
+  
+    <div class="department-content-grid">
+      <section class="department-panel">
+        <div class="section-heading">
+          <p class="label">Recent record</p>
+          <h2>What Has Happened</h2>
+        </div>
+  
+        <p
+          id="department-empty-activities"
+          class="office-empty"
+        >
+          No affairs have yet been recorded.
+        </p>
+  
+        <div
+          id="department-activity-list"
+          class="department-record-list"
+        ></div>
+      </section>
+  
+      <section class="department-panel">
+        <div class="section-heading">
+          <p class="label">Current administration</p>
+          <h2>What Is Happening</h2>
+        </div>
+  
+        <p
+          id="department-empty-projects"
+          class="office-empty"
+        >
+          No current projects are assigned here.
+        </p>
+  
+        <div
+          id="department-project-list"
+          class="department-project-list"
+        ></div>
+      </section>
+    </div>
+  
+    <section class="department-panel department-mandate">
+      <p class="label">Department mandate</p>
+  
+      <p id="department-page-mandate"></p>
+  
+      <p
+        id="department-finance-note"
+        class="department-finance-note"
+      ></p>
+    </section>
+  </main>
+
   <footer>
     <p>Established 2026 · The Lord's Manor</p>
   </footer>
 </div>
 
-<script src="estate-office.js"></script>
+<script src="departments.js"></script>
 <script src="script.js"></script>
+<script src="estate-office.js"></script>
 </body>
 </html>
