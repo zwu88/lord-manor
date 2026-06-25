@@ -332,3 +332,93 @@ dialog::backdrop {
   padding: 3px 11px;
   font-size: 1.4rem;
 }
+
+[hidden] {
+  display: none !important;
+}
+
+.login-screen {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+  background:
+    linear-gradient(
+      rgba(25, 18, 11, 0.86),
+      rgba(25, 18, 11, 0.94)
+    ),
+    radial-gradient(
+      circle at top,
+      #83683b,
+      #21180f
+    );
+}
+
+.login-panel {
+  width: min(430px, 100%);
+  padding: 42px;
+  background: var(--paper);
+  border: 1px solid var(--gold);
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.45);
+}
+
+.login-panel h1 {
+  margin: 8px 0 12px;
+  font-size: 2.3rem;
+}
+
+.login-crest {
+  margin: 0 0 18px;
+  color: var(--gold);
+  font-size: 3rem;
+}
+
+.login-description {
+  margin-bottom: 28px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.login-panel label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.login-panel input {
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 13px 14px;
+  color: var(--ink);
+  background: white;
+  border: 1px solid var(--border);
+  font: inherit;
+}
+
+.login-panel button {
+  width: 100%;
+}
+
+.login-error {
+  padding: 10px 12px;
+  color: #7d1e1e;
+  background: #f6dddd;
+  border: 1px solid #d9aaaa;
+  line-height: 1.45;
+}
+
+.logout-button {
+  margin-top: 24px;
+  color: #f4ead5;
+  background: transparent;
+  border: 1px solid rgba(244, 234, 213, 0.45);
+}
+
+.logout-button:hover {
+  color: var(--ink);
+  background: #f4ead5;
+}
