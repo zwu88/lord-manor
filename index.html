@@ -11,12 +11,54 @@
 </head>
 
 <body>
+  <section id="login-screen" class="login-screen">
+    <form id="login-form" class="login-panel">
+      <p class="login-crest">♜</p>
+      <p class="label">Private estate</p>
+      <h1>Enter the Manor</h1>
+  
+      <p class="login-description">
+        Present the lord's private seal to open the estate.
+      </p>
+  
+      <label for="login-password">
+        Manor password
+      </label>
+  
+      <input
+        id="login-password"
+        type="password"
+        autocomplete="current-password"
+        required
+      >
+  
+      <p
+        id="login-error"
+        class="login-error"
+        role="alert"
+        hidden
+      ></p>
+  
+      <button id="login-button" type="submit">
+        Enter the Estate
+      </button>
+    </form>
+  </section>
+  
+  <div id="manor-application" hidden>
   <header class="manor-header">
     <p class="date">The Chronicle of the Estate</p>
     <h1>Lord Wu's Manor</h1>
     <p class="subtitle">
       A private domain for research, study, travel, art, and life.
     </p>
+    <button
+      id="logout-button"
+      class="logout-button"
+      type="button"
+    >
+      Leave the Estate
+    </button>
   </header>
 
   <main>
@@ -29,7 +71,9 @@
         </p>
       </div>
 
-      <button id="record-button">Record an Issue</button>
+      <button id="record-button" type="button">
+        Record an Issue
+      </button>
     </section>
 
     <section>
@@ -203,7 +247,8 @@
   <footer>
     <p>Established 2026 · The Lord's Manor</p>
   </footer>
+</div>
 
-  <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
