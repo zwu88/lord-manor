@@ -1,3 +1,8 @@
+import {
+  hasValidSameOrigin,
+  requireSession
+} from "../_lib/auth.js";
+
 const VALID_REGIONS = new Set([
   "laboratory",
   "academy",
@@ -16,16 +21,6 @@ function jsonResponse(data, status = 200) {
       "Cache-Control": "no-store"
     }
   });
-}
-
-function isAuthorized(request, env) {
-  if (!env.MANOR_API_KEY) {
-    return false;
-  }
-
-  const authorization = request.headers.get("Authorization");
-
-  return authorization === `Bearer ${env.MANOR_API_KEY}`;
 }
 
 function validateIssue(input) {
@@ -111,11 +106,9 @@ function validateIssue(input) {
 }
 
 export async function onRequestGet(context) {
-  if (!isAuthorized(context.request, context.env)) {
-    return jsonResponse(
-      { error: "Unauthorized" },
-      401
-    );
+  const unauthorized = await requireSession(context);
+  if (unauthorized) {
+    return unauthorized;
   }
 
   try {
@@ -148,10 +141,18 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequestPost(context) {
-  if (!isAuthorized(context.request, context.env)) {
+  const unauthorized = await requireSession(context);
+
+  if (unauthorized) {
+    return unauthorized;
+  }
+  
+  if (!hasValidSameOrigin(context.request)) {
     return jsonResponse(
-      { error: "Unauthorized" },
-      401
+      {
+        error: "Invalid request origin."
+      },
+      403
     );
   }
 
@@ -221,10 +222,18 @@ export async function onRequestPost(context) {
 }
 
 export async function onRequestDelete(context) {
-  if (!isAuthorized(context.request, context.env)) {
+  const unauthorized = await requireSession(context);
+  
+  if (unauthorized) {
+    return unauthorized;
+  }
+  
+  if (!hasValidSameOrigin(context.request)) {
     return jsonResponse(
-      { error: "Unauthorized" },
-      401
+      {
+        error: "Invalid request origin."
+      },
+      403
     );
   }
 
