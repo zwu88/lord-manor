@@ -4,15 +4,23 @@ const LEGACY_STORAGE_KEY =
 const MIGRATION_STORAGE_KEY =
   "lord-manor-d1-migration-v1";
 
-const regionNames = {
-  laboratory: "The Laboratory",
-  academy: "The Academy",
-  "great-hall": "The Great Hall",
-  "map-room": "The Map Room",
-  "training-ground": "The Training Ground",
-  gallery: "The Gallery",
-  "council-chamber": "The Council Chamber"
-};
+const departments =
+  window.MANOR_DEPARTMENTS ?? [];
+
+const departmentMap =
+  window.MANOR_DEPARTMENT_MAP ?? {};
+
+const legacyDepartmentMap =
+  window.MANOR_LEGACY_DEPARTMENT_MAP ?? {};
+
+const regionNames = Object.fromEntries(
+  departments.map(
+    department => [
+      department.id,
+      department.name
+    ]
+  )
+);
 
 const projectStatusNames = {
   proposed: "Proposed",
@@ -145,6 +153,80 @@ const projectBoard =
 const emptyProjects =
   document.querySelector("#empty-projects");
 
+const manorHome =
+  document.querySelector("#manor-home");
+
+const departmentGrid =
+  document.querySelector("#department-grid");
+
+const departmentPage =
+  document.querySelector("#department-page");
+
+const departmentBackButton =
+  document.querySelector(
+    "#department-back-button"
+  );
+
+const departmentPageIcon =
+  document.querySelector(
+    "#department-page-icon"
+  );
+
+const departmentPageName =
+  document.querySelector(
+    "#department-page-name"
+  );
+
+const departmentPageFocus =
+  document.querySelector(
+    "#department-page-focus"
+  );
+
+const departmentPageMandate =
+  document.querySelector(
+    "#department-page-mandate"
+  );
+
+const departmentFinanceNote =
+  document.querySelector(
+    "#department-finance-note"
+  );
+
+const departmentActivityCount =
+  document.querySelector(
+    "#department-activity-count"
+  );
+
+const departmentTimeTotal =
+  document.querySelector(
+    "#department-time-total"
+  );
+
+const departmentProjectCount =
+  document.querySelector(
+    "#department-project-count"
+  );
+
+const departmentActivityList =
+  document.querySelector(
+    "#department-activity-list"
+  );
+
+const departmentProjectList =
+  document.querySelector(
+    "#department-project-list"
+  );
+
+const departmentEmptyActivities =
+  document.querySelector(
+    "#department-empty-activities"
+  );
+
+const departmentEmptyProjects =
+  document.querySelector(
+    "#department-empty-projects"
+  );
+
 let issues = [];
 let projects = [];
 let editingProjectId = null;
@@ -230,6 +312,7 @@ function showLoginScreen() {
 function showManor() {
   loginScreen.hidden = true;
   manorApplication.hidden = false;
+  routeManorView();
 }
 
 async function checkSession() {
@@ -284,6 +367,288 @@ function createTextElement(
   element.textContent = text;
 
   return element;
+}
+
+function populateDepartmentSelect(select) {
+  const previousValue = select.value;
+
+  select.replaceChildren();
+
+  for (const department of departments) {
+    const option =
+      document.createElement("option");
+
+    option.value = department.id;
+    option.textContent = department.name;
+
+    select.append(option);
+  }
+
+  if (
+    [...select.options].some(
+      option =>
+        option.value === previousValue
+    )
+  ) {
+    select.value = previousValue;
+  }
+}
+
+function renderDepartmentCards() {
+  departmentGrid.replaceChildren();
+
+  for (const department of departments) {
+    const card =
+      document.createElement("a");
+
+    card.className =
+      "region-card department-card";
+
+    card.href =
+      `#department/${department.id}`;
+
+    const icon =
+      createTextElement(
+        "span",
+        "icon",
+        department.icon
+      );
+
+    const name =
+      createTextElement(
+        "h3",
+        "",
+        department.name
+      );
+
+    const focus =
+      createTextElement(
+        "p",
+        "",
+        department.focus
+      );
+
+    card.append(icon, name, focus);
+    departmentGrid.append(card);
+  }
+}
+
+function getDepartmentIdFromHash() {
+  const prefix = "#department/";
+
+  if (!location.hash.startsWith(prefix)) {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(
+      location.hash.slice(prefix.length)
+    );
+  } catch {
+    return null;
+  }
+}
+
+function createDepartmentIssueCard(issue) {
+  const card =
+    document.createElement("article");
+
+  card.className =
+    "department-record-card";
+
+  const durationText =
+    issue.duration !== null &&
+    issue.duration !== undefined
+      ? ` · ${issue.duration} minutes`
+      : "";
+
+  card.append(
+    createTextElement(
+      "p",
+      "department-record-meta",
+      `${formatDate(issue.date)}${durationText}`
+    )
+  );
+
+  card.append(
+    createTextElement(
+      "h3",
+      "",
+      issue.title
+    )
+  );
+
+  if (issue.description) {
+    card.append(
+      createTextElement(
+        "p",
+        "department-record-description",
+        issue.description
+      )
+    );
+  }
+
+  const project =
+    getProjectById(issue.projectId);
+
+  const projectName =
+    project?.name ||
+    issue.projectName ||
+    null;
+
+  if (projectName) {
+    card.append(
+      createTextElement(
+        "p",
+        "department-record-project",
+        `Project: ${projectName}`
+      )
+    );
+  }
+
+  return card;
+}
+
+function renderDepartmentPage() {
+  const departmentId =
+    getDepartmentIdFromHash();
+
+  const department =
+    departmentMap[departmentId];
+
+  if (!department) {
+    manorHome.hidden = false;
+    departmentPage.hidden = true;
+    return;
+  }
+
+  manorHome.hidden = true;
+  departmentPage.hidden = false;
+
+  departmentPageIcon.textContent =
+    department.icon;
+
+  departmentPageName.textContent =
+    department.name;
+
+  departmentPageFocus.textContent =
+    department.focus;
+
+  departmentPageMandate.textContent =
+    department.mandate;
+
+  departmentFinanceNote.textContent =
+    department.financeTracked
+      ? "This department is included in Treasury money and time accounting."
+      : "This department is excluded from Treasury departmental accounting.";
+
+  const departmentIssues =
+    issues
+      .filter(
+        issue =>
+          issue.region === departmentId
+      )
+      .sort((first, second) => {
+        const firstValue =
+          `${first.date}-${first.createdAt ?? ""}`;
+
+        const secondValue =
+          `${second.date}-${second.createdAt ?? ""}`;
+
+        return secondValue.localeCompare(
+          firstValue
+        );
+      });
+
+  const currentProjects =
+    projects
+      .filter(project => {
+        if (project.status === "completed") {
+          return false;
+        }
+
+        if (
+          departmentId ===
+          "council-chamber"
+        ) {
+          return true;
+        }
+
+        return (
+          project.region === departmentId
+        );
+      })
+      .sort((first, second) =>
+        String(
+          second.updatedAt ?? ""
+        ).localeCompare(
+          String(first.updatedAt ?? "")
+        )
+      );
+
+  const totalMinutes =
+    departmentIssues.reduce(
+      (sum, issue) =>
+        sum + (Number(issue.duration) || 0),
+      0
+    );
+
+  departmentActivityCount.textContent =
+    String(departmentIssues.length);
+
+  departmentTimeTotal.textContent =
+    String(totalMinutes);
+
+  departmentProjectCount.textContent =
+    String(currentProjects.length);
+
+  departmentActivityList.replaceChildren();
+
+  departmentEmptyActivities.hidden =
+    departmentIssues.length > 0;
+
+  for (
+    const issue
+    of departmentIssues.slice(0, 12)
+  ) {
+    departmentActivityList.append(
+      createDepartmentIssueCard(issue)
+    );
+  }
+
+  departmentProjectList.replaceChildren();
+
+  departmentEmptyProjects.hidden =
+    currentProjects.length > 0;
+
+  for (
+    const project
+    of currentProjects
+  ) {
+    departmentProjectList.append(
+      createProjectCard(project)
+    );
+  }
+
+  window.scrollTo({
+    top: 0,
+    behavior: "instant"
+  });
+}
+
+function routeManorView() {
+  if (getDepartmentIdFromHash()) {
+    renderDepartmentPage();
+  } else {
+    manorHome.hidden = false;
+    departmentPage.hidden = true;
+  }
+}
+
+function refreshOpenDepartmentPage() {
+  if (getDepartmentIdFromHash()) {
+    renderDepartmentPage();
+  }
 }
 
 function getProjectById(projectId) {
@@ -353,6 +718,9 @@ function updateIssueProjectOptions() {
 }
 
 function renderIssues() {
+  queueMicrotask(
+    refreshOpenDepartmentPage
+  );
   issueList.replaceChildren();
 
   const sortedIssues = [...issues].sort(
@@ -402,7 +770,9 @@ function renderIssues() {
     const meta = createTextElement(
       "p",
       "issue-meta",
-      `${regionNames[issue.region]} · ` +
+      `${regionNames[issue.region] ??
+        issue.region ??
+        "Unknown Department"} · ` +
       `${formatDate(issue.date)}` +
       durationText
     );
@@ -536,7 +906,9 @@ function createProjectCard(project) {
   const region = createTextElement(
     "p",
     "project-region",
-    regionNames[project.region]
+    regionNames[project.region] ??
+    project.region ??
+    "Unknown Department"
   );
 
   const name = createTextElement(
@@ -770,6 +1142,9 @@ function createProjectCard(project) {
 }
 
 function renderProjects() {
+  queueMicrotask(
+    refreshOpenDepartmentPage
+  );
   projectBoard.replaceChildren();
 
   if (projects.length === 0) {
@@ -1052,7 +1427,10 @@ async function migrateLegacyIssues() {
         method: "POST",
         body: JSON.stringify({
           date: legacyIssue.date,
-          region: legacyIssue.region,
+          region:
+            legacyDepartmentMap[
+              legacyIssue.region
+            ] ?? legacyIssue.region,
           title: legacyIssue.title,
           description:
             legacyIssue.description ||
@@ -1420,5 +1798,38 @@ async function startManor() {
     showLoginScreen();
   }
 }
+
+renderDepartmentCards();
+
+populateDepartmentSelect(
+  issueRegionInput
+);
+
+populateDepartmentSelect(
+  projectRegionInput
+);
+
+departmentBackButton.addEventListener(
+  "click",
+  () => {
+    history.pushState(
+      null,
+      "",
+      `${location.pathname}${location.search}`
+    );
+
+    routeManorView();
+
+    window.scrollTo({
+      top: 0,
+      behavior: "instant"
+    });
+  }
+);
+
+window.addEventListener(
+  "hashchange",
+  routeManorView
+);
 
 startManor();
