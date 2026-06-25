@@ -185,6 +185,7 @@ export async function onRequestGet(context) {
         progress,
         next_action AS nextAction,
         notes,
+        completed_at AS completedAt,
         created_at AS createdAt,
         updated_at AS updatedAt
       FROM projects
@@ -252,6 +253,10 @@ export async function onRequestPost(context) {
   const project = {
     id: crypto.randomUUID(),
     ...validation.project,
+    completedAt:
+      validation.project.status === "completed"
+        ? now
+        : null,
     createdAt: now,
     updatedAt: now
   };
@@ -269,10 +274,11 @@ export async function onRequestPost(context) {
         progress,
         next_action,
         notes,
+        completed_at,
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .bind(
       project.id,
@@ -285,6 +291,7 @@ export async function onRequestPost(context) {
       project.progress,
       project.nextAction,
       project.notes,
+      project.completedAt,
       project.createdAt,
       project.updatedAt
     )
@@ -351,8 +358,37 @@ export async function onRequestPut(context) {
     );
   }
 
+  const existingProject = await context.env.DB
+    .prepare(`
+      SELECT
+        status,
+        completed_at AS completedAt
+      FROM projects
+      WHERE id = ?
+    `)
+    .bind(input.id)
+    .first();
+  
+  if (!existingProject) {
+    return jsonResponse(
+      {
+        error: "Project not found."
+      },
+      404
+    );
+  }
+
   const updatedAt = new Date().toISOString();
   const project = validation.project;
+
+  const completedAt =
+    project.status === "completed"
+      ? (
+          existingProject.status === "completed"
+            ? existingProject.completedAt || updatedAt
+            : updatedAt
+        )
+      : null;
 
   const result = await context.env.DB
     .prepare(`
@@ -367,6 +403,7 @@ export async function onRequestPut(context) {
         progress = ?,
         next_action = ?,
         notes = ?,
+        completed_at = ?,
         updated_at = ?
       WHERE id = ?
     `)
@@ -380,6 +417,7 @@ export async function onRequestPut(context) {
       project.progress,
       project.nextAction,
       project.notes,
+      completedAt,
       updatedAt,
       input.id
     )
@@ -398,6 +436,7 @@ export async function onRequestPut(context) {
     project: {
       id: input.id,
       ...project,
+      completedAt,
       updatedAt
     }
   });
