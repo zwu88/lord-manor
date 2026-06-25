@@ -449,6 +449,21 @@ export async function onRequestDelete(context) {
   
     context.env.DB
       .prepare(`
+        UPDATE next_day_tasks
+        SET project_id = NULL
+        WHERE project_id = ?
+      `)
+      .bind(id),
+  
+    context.env.DB
+      .prepare(`
+        DELETE FROM milestones
+        WHERE project_id = ?
+      `)
+      .bind(id),
+  
+    context.env.DB
+      .prepare(`
         DELETE FROM projects
         WHERE id = ?
       `)
