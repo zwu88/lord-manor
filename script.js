@@ -1985,10 +1985,7 @@ async function migrateLegacyIssues() {
 
   const legacyIssues =
     readLegacyIssues();
-
-  moneyCostCents:
-    legacyIssue.moneyCostCents ?? 0,
-
+  
   if (legacyIssues.length === 0) {
     localStorage.setItem(
       MIGRATION_STORAGE_KEY,
@@ -2020,20 +2017,22 @@ async function migrateLegacyIssues() {
       {
         method: "POST",
         body: JSON.stringify({
-          date: legacyIssue.date,
-          region:
-            legacyDepartmentMap[
-              legacyIssue.region
-            ] ?? legacyIssue.region,
-          title: legacyIssue.title,
-          description:
-            legacyIssue.description ||
-            "",
-          duration:
-            legacyIssue.duration ??
-            null,
-          projectId: null
-        })
+        date: legacyIssue.date,
+        region:
+          legacyDepartmentMap[
+            legacyIssue.region
+          ] ?? legacyIssue.region,
+        title: legacyIssue.title,
+        description:
+          legacyIssue.description ||
+          "",
+        duration:
+          legacyIssue.duration ??
+          null,
+        moneyCostCents:
+          legacyIssue.moneyCostCents ?? 0,
+        projectId: null
+      })
       }
     );
   }
@@ -2212,7 +2211,7 @@ issueForm.addEventListener(
               description,
               duration: durationValue
                 ? Number(durationValue)
-                : null
+                : null,
               moneyCostCents,
             })
           }
