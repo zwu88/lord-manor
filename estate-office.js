@@ -397,7 +397,13 @@ function createTaskCard(task) {
         tomorrowTasks =
           tomorrowTasks.map(item =>
             item.id === task.id
-              ? payload.task
+              ? {
+                  ...item,
+                  ...payload.task,
+                  createdAt:
+                    payload.task.createdAt ??
+                    item.createdAt
+                }
               : item
           );
 
@@ -493,8 +499,10 @@ function renderTomorrowTasks() {
           return completedDifference;
         }
 
-        return first.createdAt.localeCompare(
-          second.createdAt
+        return String(
+          first.createdAt ?? ""
+        ).localeCompare(
+          String(second.createdAt ?? "")
         );
       }
     );
@@ -1059,7 +1067,13 @@ taskForm.addEventListener(
         tomorrowTasks =
           tomorrowTasks.map(task =>
             task.id === editingTaskId
-              ? payload.task
+              ? {
+                  ...task,
+                  ...payload.task,
+                  createdAt:
+                    payload.task.createdAt ??
+                    task.createdAt
+                }
               : task
           );
       } else {
