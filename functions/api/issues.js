@@ -51,6 +51,13 @@ function validateIssue(input) {
       ? null
       : Number(input.duration);
 
+  const projectId =
+    input.projectId === null ||
+    input.projectId === undefined ||
+    input.projectId === ""
+      ? null
+      : String(input.projectId).trim();
+
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return {
       valid: false,
@@ -68,14 +75,16 @@ function validateIssue(input) {
   if (!title || title.length > 120) {
     return {
       valid: false,
-      error: "The title must contain between 1 and 120 characters."
+      error:
+        "The title must contain between 1 and 120 characters."
     };
   }
 
   if (description.length > 1500) {
     return {
       valid: false,
-      error: "The description cannot exceed 1500 characters."
+      error:
+        "The description cannot exceed 1500 characters."
     };
   }
 
@@ -89,7 +98,15 @@ function validateIssue(input) {
   ) {
     return {
       valid: false,
-      error: "The duration must be an integer from 0 to 1440."
+      error:
+        "The duration must be an integer from 0 to 1440."
+    };
+  }
+
+  if (projectId !== null && projectId.length > 100) {
+    return {
+      valid: false,
+      error: "The selected project is invalid."
     };
   }
 
@@ -100,13 +117,16 @@ function validateIssue(input) {
       region,
       title,
       description,
-      duration
+      duration,
+      projectId
     }
   };
 }
 
 export async function onRequestGet(context) {
-  const unauthorized = await requireSession(context);
+  const unauthorized =
+    await requireSession(context);
+
   if (unauthorized) {
     return unauthorized;
   }
@@ -115,15 +135,21 @@ export async function onRequestGet(context) {
     const result = await context.env.DB
       .prepare(`
         SELECT
-          id,
-          date,
-          region,
-          title,
-          description,
-          duration,
-          created_at AS createdAt
+          activities.id,
+          activities.date,
+          activities.region,
+          activities.title,
+          activities.description,
+          activities.duration,
+          activities.project_id AS projectId,
+          activities.created_at AS createdAt,
+          projects.name AS projectName
         FROM activities
-        ORDER BY date DESC, created_at DESC
+        LEFT JOIN projects
+          ON activities.project_id = projects.id
+        ORDER BY
+          activities.date DESC,
+          activities.created_at DESC
       `)
       .all();
 
@@ -134,19 +160,22 @@ export async function onRequestGet(context) {
     console.error("Could not load issues:", error);
 
     return jsonResponse(
-      { error: "Could not load the manor records." },
+      {
+        error: "Could not load the manor records."
+      },
       500
     );
   }
 }
 
 export async function onRequestPost(context) {
-  const unauthorized = await requireSession(context);
+  const unauthorized =
+    await requireSession(context);
 
   if (unauthorized) {
     return unauthorized;
   }
-  
+
   if (!hasValidSameOrigin(context.request)) {
     return jsonResponse(
       {
@@ -162,7 +191,10 @@ export async function onRequestPost(context) {
     input = await context.request.json();
   } catch {
     return jsonResponse(
-      { error: "The request body must contain valid JSON." },
+      {
+        error:
+          "The request body must contain valid JSON."
+      },
       400
     );
   }
@@ -171,7 +203,9 @@ export async function onRequestPost(context) {
 
   if (!validation.valid) {
     return jsonResponse(
-      { error: validation.error },
+      {
+        error: validation.error
+      },
       400
     );
   }
@@ -183,6 +217,27 @@ export async function onRequestPost(context) {
   };
 
   try {
+    if (issue.projectId) {
+      const project = await context.env.DB
+        .prepare(`
+          SELECT id
+          FROM projects
+          WHERE id = ?
+        `)
+        .bind(issue.projectId)
+        .first();
+
+      if (!project) {
+        return jsonResponse(
+          {
+            error:
+              "The selected project no longer exists."
+          },
+          400
+        );
+      }
+    }
+
     await context.env.DB
       .prepare(`
         INSERT INTO activities (
@@ -192,9 +247,10 @@ export async function onRequestPost(context) {
           title,
           description,
           duration,
+          project_id,
           created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         issue.id,
@@ -203,31 +259,37 @@ export async function onRequestPost(context) {
         issue.title,
         issue.description,
         issue.duration,
+        issue.projectId,
         issue.createdAt
       )
       .run();
 
     return jsonResponse(
-      { issue },
+      {
+        issue
+      },
       201
     );
   } catch (error) {
     console.error("Could not save issue:", error);
 
     return jsonResponse(
-      { error: "Could not save the manor record." },
+      {
+        error: "Could not save the manor record."
+      },
       500
     );
   }
 }
 
 export async function onRequestDelete(context) {
-  const unauthorized = await requireSession(context);
-  
+  const unauthorized =
+    await requireSession(context);
+
   if (unauthorized) {
     return unauthorized;
   }
-  
+
   if (!hasValidSameOrigin(context.request)) {
     return jsonResponse(
       {
@@ -242,7 +304,9 @@ export async function onRequestDelete(context) {
 
   if (!id) {
     return jsonResponse(
-      { error: "An issue ID is required." },
+      {
+        error: "An issue ID is required."
+      },
       400
     );
   }
@@ -264,7 +328,9 @@ export async function onRequestDelete(context) {
     console.error("Could not delete issue:", error);
 
     return jsonResponse(
-      { error: "Could not delete the manor record." },
+      {
+        error: "Could not delete the manor record."
+      },
       500
     );
   }
