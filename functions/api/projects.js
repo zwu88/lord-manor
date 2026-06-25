@@ -438,13 +438,22 @@ export async function onRequestDelete(context) {
     );
   }
 
-  await context.env.DB
-    .prepare(`
-      DELETE FROM projects
-      WHERE id = ?
-    `)
-    .bind(id)
-    .run();
+  await context.env.DB.batch([
+    context.env.DB
+      .prepare(`
+        UPDATE activities
+        SET project_id = NULL
+        WHERE project_id = ?
+      `)
+      .bind(id),
+  
+    context.env.DB
+      .prepare(`
+        DELETE FROM projects
+        WHERE id = ?
+      `)
+      .bind(id)
+  ]);
 
   return jsonResponse({
     deleted: true,
