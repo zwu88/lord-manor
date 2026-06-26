@@ -34,6 +34,7 @@ jobs:
           node --check estate-office.js
           node --check departments.js
           node --check treasury.js
+          node --check chronicle.js
 
       - name: Check Cloudflare Functions
         shell: bash
