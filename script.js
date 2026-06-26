@@ -1588,7 +1588,7 @@ function createProjectCard(project) {
       )}`
     );
   }
-
+  
   if (project.targetDate) {
     dates.push(
       `Target ${formatDate(
@@ -1596,17 +1596,7 @@ function createProjectCard(project) {
       )}`
     );
   }
-
-  if (dates.length > 0) {
-    card.append(
-      createTextElement(
-        "p",
-        "project-dates",
-        dates.join(" · ")
-      )
-    );
-  }
-
+  
   if (project.completedAt) {
     const completedDate =
       new Date(project.completedAt);
@@ -1620,6 +1610,16 @@ function createProjectCard(project) {
           day: "numeric"
         }
       ).format(completedDate)}`
+    );
+  }
+  
+  if (dates.length > 0) {
+    card.append(
+      createTextElement(
+        "p",
+        "project-dates",
+        dates.join(" · ")
+      )
     );
   }
 
