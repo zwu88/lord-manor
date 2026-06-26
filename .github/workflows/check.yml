@@ -1,0 +1,50 @@
+name: Check Manor Code
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-check:
+    name: JavaScript syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Check browser scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node --check script.js
+          node --check estate-office.js
+          node --check departments.js
+
+      - name: Check Cloudflare Functions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          while IFS= read -r -d '' file; do
+            echo "Checking ${file}"
+            node --input-type=module --check < "${file}"
+          done < <(
+            find functions \
+              -type f \
+              -name '*.js' \
+              -print0
+          )
