@@ -1878,12 +1878,54 @@ async function refreshProjects() {
   updateIssueProjectOptions();
 }
 
-function openIssueDialog() {
+function openIssueDialog(issue = null) {
   issueForm.reset();
-  issueDateInput.value =
-    getLocalDateString();
+
+  editingIssueId =
+    issue?.id || null;
 
   updateIssueProjectOptions();
+
+  if (issue) {
+    issueDialogTitle.textContent =
+      "Amend the Issue";
+
+    saveIssueButton.textContent =
+      "Save the Amendment";
+
+    issueDateInput.value =
+      issue.date;
+
+    issueRegionInput.value =
+      issue.region;
+
+    issueProjectInput.value =
+      issue.projectId || "";
+
+    issueTitleInput.value =
+      issue.title;
+
+    issueDescriptionInput.value =
+      issue.description || "";
+
+    issueDurationInput.value =
+      issue.duration ?? "";
+
+    issueMoneyInput.value =
+      Number(issue.moneyCostCents || 0) /
+      100;
+  } else {
+    issueDialogTitle.textContent =
+      "Record an Issue";
+
+    saveIssueButton.textContent =
+      "Seal the Record";
+
+    issueDateInput.value =
+      getLocalDateString();
+
+    issueMoneyInput.value = "";
+  }
 
   issueDialog.showModal();
   issueTitleInput.focus();
@@ -1891,6 +1933,7 @@ function openIssueDialog() {
 
 function closeIssueDialog() {
   issueDialog.close();
+  editingIssueId = null;
 }
 
 function openProjectDialog(
