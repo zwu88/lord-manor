@@ -69,6 +69,16 @@ const issueDialog =
 const issueForm =
   document.querySelector("#issue-form");
 
+const issueDialogTitle =
+  document.querySelector(
+    "#issue-dialog-title"
+  );
+
+const saveIssueButton =
+  document.querySelector(
+    "#save-issue-button"
+  );
+
 const closeDialogButton =
   document.querySelector("#close-dialog");
 
@@ -334,6 +344,8 @@ issueMoneyLabel.textContent =
 
 let issues = [];
 let projects = [];
+
+let editingIssueId = null;
 let editingProjectId = null;
 
 const today = new Intl.DateTimeFormat(
