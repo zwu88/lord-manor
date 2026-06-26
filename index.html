@@ -200,19 +200,71 @@
     </section>
 
     <section class="chronicle">
-      <div class="section-heading">
-        <p class="label">Latest dispatch</p>
-        <h2>The Manor Chronicle</h2>
+      <div class="section-heading heading-with-action">
+        <div>
+          <p class="label">Morning dispatch</p>
+          <h2>The Manor Chronicle</h2>
+    
+          <p class="section-description">
+            A deterministic daily briefing drawn from the estate records.
+          </p>
+        </div>
+    
+        <button
+          id="refresh-chronicle-button"
+          class="secondary-button"
+          type="button"
+        >
+          Refresh Dispatch
+        </button>
       </div>
-
-      <article class="newspaper">
-        <p class="newspaper-date" id="current-date"></p>
-        <h3>A New Estate Is Established</h3>
-        <p>
-          Today marks the establishment of a virtual manor devoted to
-          recording work, learning, journeys, relationships, health,
-          and artistic life.
+    
+      <article
+        id="manor-newspaper"
+        class="newspaper"
+      >
+        <p
+          id="current-date"
+          class="newspaper-date"
+        ></p>
+    
+        <h3 id="chronicle-headline">
+          Opening the Morning Dispatch...
+        </h3>
+    
+        <p
+          id="chronicle-lead"
+          class="chronicle-lead"
+        >
+          Gathering today’s orders and estate records.
         </p>
+    
+        <section class="chronicle-block">
+          <h4>Today’s Orders</h4>
+    
+          <div
+            id="chronicle-task-list"
+            class="chronicle-list"
+          ></div>
+        </section>
+    
+        <section class="chronicle-block">
+          <h4>Today’s Record</h4>
+    
+          <div
+            id="chronicle-issue-list"
+            class="chronicle-list"
+          ></div>
+        </section>
+    
+        <section class="chronicle-block">
+          <h4>Council Watch</h4>
+    
+          <div
+            id="chronicle-milestone-list"
+            class="chronicle-list"
+          ></div>
+        </section>
       </article>
     </section>
   </main>
