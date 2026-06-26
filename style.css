@@ -1253,3 +1253,21 @@ dialog::backdrop {
   }
 }
 
+.issue-card-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.edit-issue-button {
+  padding: 7px 10px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+
+.edit-issue-button:hover {
+  color: white;
+  background: var(--muted);
+}
