@@ -1271,3 +1271,74 @@ dialog::backdrop {
   color: white;
   background: var(--muted);
 }
+
+.chronicle-lead {
+  margin-top: 0;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.05rem;
+  column-span: all;
+}
+
+.chronicle-block {
+  margin: 0 0 30px;
+  break-inside: avoid;
+}
+
+.chronicle-block h4 {
+  margin: 0 0 14px;
+  padding-bottom: 8px;
+  color: var(--ink);
+  border-bottom: 2px solid var(--ink);
+  font-size: 1.25rem;
+}
+
+.chronicle-list {
+  display: grid;
+  gap: 14px;
+}
+
+.chronicle-entry {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  break-inside: avoid;
+}
+
+.chronicle-entry:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.chronicle-entry-meta {
+  margin: 0 0 4px;
+  color: var(--accent) !important;
+  font-size: 0.72rem;
+  font-weight: bold;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.chronicle-entry-title {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.35;
+}
+
+.chronicle-entry-description {
+  margin: 7px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5 !important;
+  white-space: pre-wrap;
+}
+
+.chronicle-empty {
+  margin: 0;
+  font-style: italic;
+}
+
+@media (max-width: 600px) {
+  .chronicle .heading-with-action {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
