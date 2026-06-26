@@ -673,7 +673,30 @@ function createDepartmentIssueCard(issue) {
 
     card.append(projectElement);
   }
-
+  const actions =
+    document.createElement("div");
+  
+  actions.className =
+    "issue-card-actions";
+  
+  const editButton =
+    createTextElement(
+      "button",
+      "edit-issue-button",
+      "Edit"
+    );
+  
+  editButton.type = "button";
+  
+  editButton.addEventListener(
+    "click",
+    () => {
+      openIssueDialog(issue);
+    }
+  );
+  
+  actions.append(editButton);
+  card.append(actions);
   return card;
 }
 
@@ -1349,6 +1372,22 @@ function createIssueCard(issue) {
     );
   }
 
+  const editButton =
+    createTextElement(
+      "button",
+      "edit-issue-button",
+      "Edit"
+    );
+  
+  editButton.type = "button";
+  
+  editButton.addEventListener(
+    "click",
+    () => {
+      openIssueDialog(issue);
+    }
+  );
+
   const deleteButton =
     createTextElement(
       "button",
@@ -1398,9 +1437,20 @@ function createIssueCard(issue) {
     }
   );
 
+  const actions =
+    document.createElement("div");
+  
+  actions.className =
+    "issue-card-actions";
+  
+  actions.append(
+    editButton,
+    deleteButton
+  );
+  
   header.append(
     headingContainer,
-    deleteButton
+    actions
   );
 
   card.append(header);
@@ -2188,7 +2238,7 @@ logoutButton.addEventListener(
 
 recordButton.addEventListener(
   "click",
-  openIssueDialog
+  () => openIssueDialog()
 );
 
 closeDialogButton.addEventListener(
@@ -2229,45 +2279,68 @@ issueForm.addEventListener(
 
     const durationValue =
       issueDurationInput.value.trim();
-    
-    const moneyCostCents =
-      parseMoneyToCents(
-        issueMoneyInput.value.trim()
-      );
+
+    let moneyCostCents;
+
+    try {
+      moneyCostCents =
+        parseMoneyToCents(
+          issueMoneyInput.value.trim()
+        );
+    } catch (error) {
+      window.alert(error.message);
+      return;
+    }
 
     if (!title) {
       return;
     }
 
-    const submitButton =
-      issueForm.querySelector(
-        'button[type="submit"]'
-      );
+    const issueId =
+      editingIssueId;
 
-    submitButton.disabled = true;
-    submitButton.textContent =
-      "Sealing the Record...";
+    const isEditing =
+      Boolean(issueId);
+
+    saveIssueButton.disabled = true;
+
+    saveIssueButton.textContent =
+      isEditing
+        ? "Saving..."
+        : "Sealing the Record...";
 
     try {
       const payload =
         await apiFetch(
           "/api/issues",
           {
-            method: "POST",
+            method:
+              isEditing
+                ? "PUT"
+                : "POST",
+
             body: JSON.stringify({
+              id: issueId,
+
               date:
                 issueDateInput.value,
+
               region:
                 issueRegionInput.value,
+
               projectId:
                 issueProjectInput.value ||
                 null,
+
               title,
               description,
-              duration: durationValue
-                ? Number(durationValue)
-                : null,
-              moneyCostCents,
+
+              duration:
+                durationValue
+                  ? Number(durationValue)
+                  : null,
+
+              moneyCostCents
             })
           }
         );
@@ -2277,21 +2350,42 @@ issueForm.addEventListener(
           payload.issue.projectId
         );
 
-      issues.unshift({
+      const completeIssue = {
         ...payload.issue,
+
         projectName:
           selectedProject?.name ||
+          payload.issue.projectName ||
           null
-      });
+      };
+
+      if (isEditing) {
+        issues = issues.map(
+          issue =>
+            issue.id === issueId
+              ? {
+                  ...issue,
+                  ...completeIssue
+                }
+              : issue
+        );
+      } else {
+        issues.unshift(
+          completeIssue
+        );
+      }
 
       renderIssues();
       closeIssueDialog();
     } catch (error) {
       window.alert(error.message);
     } finally {
-      submitButton.disabled = false;
-      submitButton.textContent =
-        "Seal the Record";
+      saveIssueButton.disabled = false;
+
+      saveIssueButton.textContent =
+        isEditing
+          ? "Save the Amendment"
+          : "Seal the Record";
     }
   }
 );
