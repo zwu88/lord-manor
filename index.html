@@ -122,391 +122,6 @@
         class="issue-list"
       ></div>
     </section>
-    
-    <dialog id="issue-dialog">
-      <form id="issue-form">
-        <div class="dialog-heading">
-          <div>
-            <p class="label">Manor record</p>
-
-            <h2 id="issue-dialog-title">
-              Record an Issue
-            </h2>
-          </div>
-    
-          <button
-            type="button"
-            id="close-dialog"
-            class="close-button"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-    
-        <label>
-          Date
-          <input id="issue-date" type="date" required>
-        </label>
-    
-        <label>
-          Department
-          <select
-            id="issue-region"
-            required
-          ></select>
-        </label>
-
-        <label>
-          Related project
-          <select id="issue-project">
-            <option value="">No related project</option>
-          </select>
-        </label>
-    
-        <label>
-          Title
-          <input
-            id="issue-title"
-            type="text"
-            maxlength="120"
-            placeholder="Completed the first experiment"
-            required
-          >
-        </label>
-    
-        <label>
-          Description
-          <textarea
-            id="issue-description"
-            rows="5"
-            maxlength="1500"
-            placeholder="What happened, what was achieved, and what remains to be done?"
-          ></textarea>
-        </label>
-    
-        <div class="form-grid">
-          <label>
-            Duration in minutes
-            <input
-              id="issue-duration"
-              type="number"
-              min="0"
-              max="1440"
-              placeholder="60"
-            >
-          </label>
-        
-          <label>
-            <span id="issue-money-label">
-              Money cost
-            </span>
-        
-            <input
-              id="issue-money"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-            >
-          </label>
-        </div>
-    
-        <div class="form-actions">
-          <button type="button" id="cancel-issue" class="secondary-button">
-            Cancel
-          </button>
-    
-          <button
-            id="save-issue-button"
-            type="submit"
-          >
-            Seal the Record
-          </button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="project-dialog">
-      <form id="project-form">
-        <div class="dialog-heading">
-          <div>
-            <p class="label">Council record</p>
-            <h2 id="project-dialog-title">
-              Establish a Project
-            </h2>
-          </div>
-    
-          <button
-            id="close-project-dialog"
-            class="close-button"
-            type="button"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-    
-        <label>
-          Project name
-          <input
-            id="project-name"
-            type="text"
-            maxlength="150"
-            placeholder="Develop the Lord Manor system"
-            required
-          >
-        </label>
-    
-        <label>
-          Responsible department
-          <select
-            id="project-region"
-            required
-          ></select>
-        </label>
-    
-        <label>
-          Objective
-          <textarea
-            id="project-objective"
-            rows="4"
-            maxlength="3000"
-            placeholder="What should this project accomplish?"
-          ></textarea>
-        </label>
-    
-        <div class="form-grid">
-          <label>
-            Status
-            <select id="project-status">
-              <option value="proposed">Proposed</option>
-              <option value="active" selected>Active</option>
-              <option value="suspended">Suspended</option>
-              <option value="completed">Completed</option>
-            </select>
-          </label>
-    
-          <label>
-            Progress
-            <div class="progress-input">
-              <input
-                id="project-progress"
-                type="number"
-                min="0"
-                max="100"
-                value="0"
-                required
-              >
-              <span>%</span>
-            </div>
-          </label>
-        </div>
-    
-        <div class="form-grid">
-          <label>
-            Start date
-            <input
-              id="project-start-date"
-              type="date"
-            >
-          </label>
-    
-          <label>
-            Target date
-            <input
-              id="project-target-date"
-              type="date"
-            >
-          </label>
-        </div>
-    
-        <label>
-          Next action
-          <textarea
-            id="project-next-action"
-            rows="3"
-            maxlength="1000"
-            placeholder="What is the next concrete action?"
-          ></textarea>
-        </label>
-    
-        <label>
-          Council notes
-          <textarea
-            id="project-notes"
-            rows="4"
-            maxlength="5000"
-            placeholder="Additional plans, decisions, or concerns"
-          ></textarea>
-        </label>
-    
-        <div class="form-actions">
-          <button
-            id="cancel-project"
-            class="secondary-button"
-            type="button"
-          >
-            Cancel
-          </button>
-    
-          <button
-            id="save-project-button"
-            type="submit"
-          >
-            Seal the Project
-          </button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="task-dialog">
-      <form id="task-form">
-        <div class="dialog-heading">
-          <div>
-            <p class="label">Estate order</p>
-            <h2 id="task-dialog-title">
-              Prepare Tomorrow's Order
-            </h2>
-            <p
-              id="task-dialog-date"
-              class="dialog-date"
-            ></p>
-          </div>
-    
-          <button
-            id="close-task-dialog"
-            class="close-button"
-            type="button"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-    
-        <label>
-          Task
-          <input
-            id="task-title"
-            type="text"
-            maxlength="200"
-            placeholder="Complete the experiment analysis"
-            required
-          >
-        </label>
-    
-        <label>
-          Related project
-          <select id="task-project">
-            <option value="">No related project</option>
-          </select>
-        </label>
-    
-        <label>
-          Details
-          <textarea
-            id="task-description"
-            rows="4"
-            maxlength="2000"
-            placeholder="What specifically should be completed tomorrow?"
-          ></textarea>
-        </label>
-    
-        <div class="form-actions">
-          <button
-            id="cancel-task"
-            class="secondary-button"
-            type="button"
-          >
-            Cancel
-          </button>
-    
-          <button
-            id="save-task-button"
-            type="submit"
-          >
-            Seal the Order
-          </button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="milestone-dialog">
-      <form id="milestone-form">
-        <div class="dialog-heading">
-          <div>
-            <p class="label">Project checkpoint</p>
-            <h2 id="milestone-dialog-title">
-              Establish a Milestone
-            </h2>
-          </div>
-    
-          <button
-            id="close-milestone-dialog"
-            class="close-button"
-            type="button"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-    
-        <label>
-          Project
-          <select
-            id="milestone-project"
-            required
-          ></select>
-        </label>
-    
-        <label>
-          Milestone
-          <input
-            id="milestone-title"
-            type="text"
-            maxlength="200"
-            placeholder="Complete the first working prototype"
-            required
-          >
-        </label>
-    
-        <label>
-          Target date
-          <input
-            id="milestone-target-date"
-            type="date"
-            required
-          >
-        </label>
-    
-        <label>
-          Notes
-          <textarea
-            id="milestone-notes"
-            rows="4"
-            maxlength="3000"
-            placeholder="Conditions for considering this milestone achieved"
-          ></textarea>
-        </label>
-    
-        <div class="form-actions">
-          <button
-            id="cancel-milestone"
-            class="secondary-button"
-            type="button"
-          >
-            Cancel
-          </button>
-    
-          <button
-            id="save-milestone-button"
-            type="submit"
-          >
-            Seal the Milestone
-          </button>
-        </div>
-      </form>
-    </dialog>
 
     <section
       id="estate-office"
@@ -878,6 +493,391 @@
       ></p>
     </section>
   </main>
+
+  <dialog id="issue-dialog">
+    <form id="issue-form">
+      <div class="dialog-heading">
+        <div>
+          <p class="label">Manor record</p>
+
+          <h2 id="issue-dialog-title">
+            Record an Issue
+          </h2>
+        </div>
+  
+        <button
+          type="button"
+          id="close-dialog"
+          class="close-button"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </div>
+  
+      <label>
+        Date
+        <input id="issue-date" type="date" required>
+      </label>
+  
+      <label>
+        Department
+        <select
+          id="issue-region"
+          required
+        ></select>
+      </label>
+
+      <label>
+        Related project
+        <select id="issue-project">
+          <option value="">No related project</option>
+        </select>
+      </label>
+  
+      <label>
+        Title
+        <input
+          id="issue-title"
+          type="text"
+          maxlength="120"
+          placeholder="Completed the first experiment"
+          required
+        >
+      </label>
+  
+      <label>
+        Description
+        <textarea
+          id="issue-description"
+          rows="5"
+          maxlength="1500"
+          placeholder="What happened, what was achieved, and what remains to be done?"
+        ></textarea>
+      </label>
+  
+      <div class="form-grid">
+        <label>
+          Duration in minutes
+          <input
+            id="issue-duration"
+            type="number"
+            min="0"
+            max="1440"
+            placeholder="60"
+          >
+        </label>
+      
+        <label>
+          <span id="issue-money-label">
+            Money cost
+          </span>
+      
+          <input
+            id="issue-money"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+          >
+        </label>
+      </div>
+  
+      <div class="form-actions">
+        <button type="button" id="cancel-issue" class="secondary-button">
+          Cancel
+        </button>
+  
+        <button
+          id="save-issue-button"
+          type="submit"
+        >
+          Seal the Record
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="project-dialog">
+    <form id="project-form">
+      <div class="dialog-heading">
+        <div>
+          <p class="label">Council record</p>
+          <h2 id="project-dialog-title">
+            Establish a Project
+          </h2>
+        </div>
+  
+        <button
+          id="close-project-dialog"
+          class="close-button"
+          type="button"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </div>
+  
+      <label>
+        Project name
+        <input
+          id="project-name"
+          type="text"
+          maxlength="150"
+          placeholder="Develop the Lord Manor system"
+          required
+        >
+      </label>
+  
+      <label>
+        Responsible department
+        <select
+          id="project-region"
+          required
+        ></select>
+      </label>
+  
+      <label>
+        Objective
+        <textarea
+          id="project-objective"
+          rows="4"
+          maxlength="3000"
+          placeholder="What should this project accomplish?"
+        ></textarea>
+      </label>
+  
+      <div class="form-grid">
+        <label>
+          Status
+          <select id="project-status">
+            <option value="proposed">Proposed</option>
+            <option value="active" selected>Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="completed">Completed</option>
+          </select>
+        </label>
+  
+        <label>
+          Progress
+          <div class="progress-input">
+            <input
+              id="project-progress"
+              type="number"
+              min="0"
+              max="100"
+              value="0"
+              required
+            >
+            <span>%</span>
+          </div>
+        </label>
+      </div>
+  
+      <div class="form-grid">
+        <label>
+          Start date
+          <input
+            id="project-start-date"
+            type="date"
+          >
+        </label>
+  
+        <label>
+          Target date
+          <input
+            id="project-target-date"
+            type="date"
+          >
+        </label>
+      </div>
+  
+      <label>
+        Next action
+        <textarea
+          id="project-next-action"
+          rows="3"
+          maxlength="1000"
+          placeholder="What is the next concrete action?"
+        ></textarea>
+      </label>
+  
+      <label>
+        Council notes
+        <textarea
+          id="project-notes"
+          rows="4"
+          maxlength="5000"
+          placeholder="Additional plans, decisions, or concerns"
+        ></textarea>
+      </label>
+  
+      <div class="form-actions">
+        <button
+          id="cancel-project"
+          class="secondary-button"
+          type="button"
+        >
+          Cancel
+        </button>
+  
+        <button
+          id="save-project-button"
+          type="submit"
+        >
+          Seal the Project
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="task-dialog">
+    <form id="task-form">
+      <div class="dialog-heading">
+        <div>
+          <p class="label">Estate order</p>
+          <h2 id="task-dialog-title">
+            Prepare Tomorrow's Order
+          </h2>
+          <p
+            id="task-dialog-date"
+            class="dialog-date"
+          ></p>
+        </div>
+  
+        <button
+          id="close-task-dialog"
+          class="close-button"
+          type="button"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </div>
+  
+      <label>
+        Task
+        <input
+          id="task-title"
+          type="text"
+          maxlength="200"
+          placeholder="Complete the experiment analysis"
+          required
+        >
+      </label>
+  
+      <label>
+        Related project
+        <select id="task-project">
+          <option value="">No related project</option>
+        </select>
+      </label>
+  
+      <label>
+        Details
+        <textarea
+          id="task-description"
+          rows="4"
+          maxlength="2000"
+          placeholder="What specifically should be completed tomorrow?"
+        ></textarea>
+      </label>
+  
+      <div class="form-actions">
+        <button
+          id="cancel-task"
+          class="secondary-button"
+          type="button"
+        >
+          Cancel
+        </button>
+  
+        <button
+          id="save-task-button"
+          type="submit"
+        >
+          Seal the Order
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="milestone-dialog">
+    <form id="milestone-form">
+      <div class="dialog-heading">
+        <div>
+          <p class="label">Project checkpoint</p>
+          <h2 id="milestone-dialog-title">
+            Establish a Milestone
+          </h2>
+        </div>
+  
+        <button
+          id="close-milestone-dialog"
+          class="close-button"
+          type="button"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </div>
+  
+      <label>
+        Project
+        <select
+          id="milestone-project"
+          required
+        ></select>
+      </label>
+  
+      <label>
+        Milestone
+        <input
+          id="milestone-title"
+          type="text"
+          maxlength="200"
+          placeholder="Complete the first working prototype"
+          required
+        >
+      </label>
+  
+      <label>
+        Target date
+        <input
+          id="milestone-target-date"
+          type="date"
+          required
+        >
+      </label>
+  
+      <label>
+        Notes
+        <textarea
+          id="milestone-notes"
+          rows="4"
+          maxlength="3000"
+          placeholder="Conditions for considering this milestone achieved"
+        ></textarea>
+      </label>
+  
+      <div class="form-actions">
+        <button
+          id="cancel-milestone"
+          class="secondary-button"
+          type="button"
+        >
+          Cancel
+        </button>
+  
+        <button
+          id="save-milestone-button"
+          type="submit"
+        >
+          Seal the Milestone
+        </button>
+      </div>
+    </form>
+  </dialog>
 
   <footer>
     <p>Established 2026 · The Lord's Manor</p>
