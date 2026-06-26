@@ -319,6 +319,16 @@ const treasuryMoneyLegend =
     "#treasury-money-legend"
   );
 
+const treasuryMoneyPeriod =
+  document.querySelector(
+    "#treasury-money-period"
+  );
+
+const treasuryMoneyScaleButtons =
+  document.querySelectorAll(
+    "[data-treasury-money-scale]"
+  );
+
 const treasuryTimePie =
   document.querySelector(
     "#treasury-time-pie"
@@ -841,6 +851,7 @@ const treasuryColors = [
   "#7b704b"
 ];
 
+let treasuryMoneyScale = "week";
 let treasuryTimeScale = "week";
 
 function localDateString(date) {
@@ -887,6 +898,98 @@ function getTreasuryDateRange(scale) {
     start: localDateString(start),
     end: localDateString(end)
   };
+}
+
+function formatTreasuryPeriod(
+  scale,
+  range
+) {
+  if (scale === "week") {
+    const endDate = new Date(
+      `${range.end}T12:00:00`
+    );
+
+    endDate.setDate(
+      endDate.getDate() - 1
+    );
+
+    const formattedEnd =
+      new Intl.DateTimeFormat(
+        manorLocale,
+        {
+          month: "short",
+          day: "numeric",
+          year: "numeric"
+        }
+      ).format(endDate);
+
+    return (
+      `Current week: ` +
+      `${formatDate(range.start)}–` +
+      `${formattedEnd}`
+    );
+  }
+
+  const monthDate = new Date(
+    `${range.start}T12:00:00`
+  );
+
+  const formattedMonth =
+    new Intl.DateTimeFormat(
+      manorLocale,
+      {
+        month: "long",
+        year: "numeric"
+      }
+    ).format(monthDate);
+
+  return `Current month: ${formattedMonth}`;
+}
+
+function formatTreasuryPeriod(
+  scale,
+  range
+) {
+  if (scale === "week") {
+    const endDate = new Date(
+      `${range.end}T12:00:00`
+    );
+
+    endDate.setDate(
+      endDate.getDate() - 1
+    );
+
+    const formattedEnd =
+      new Intl.DateTimeFormat(
+        manorLocale,
+        {
+          month: "short",
+          day: "numeric",
+          year: "numeric"
+        }
+      ).format(endDate);
+
+    return (
+      `Current week: ` +
+      `${formatDate(range.start)}–` +
+      `${formattedEnd}`
+    );
+  }
+
+  const monthDate = new Date(
+    `${range.start}T12:00:00`
+  );
+
+  const formattedMonth =
+    new Intl.DateTimeFormat(
+      manorLocale,
+      {
+        month: "long",
+        year: "numeric"
+      }
+    ).format(monthDate);
+
+  return `Current month: ${formattedMonth}`;
 }
 
 function trackedDepartmentEntries(
@@ -1050,27 +1153,78 @@ function renderTreasuryPie(
 }
 
 function renderTreasury() {
-  const moneyEntries =
+  /*
+   * The large total remains cumulative across
+   * all recorded issues.
+   */
+  const allMoneyEntries =
     trackedDepartmentEntries(
       "money"
     );
-
+  
   const totalMoney =
+    allMoneyEntries.reduce(
+      (sum, entry) =>
+        sum + entry.value,
+      0
+    );
+  
+  treasuryTotalMoney.textContent =
+    formatMoneyFromCents(totalMoney);
+  
+    /*
+     * The large total remains cumulative across
+     * all recorded issues.
+     */
+  const allMoneyEntries =
+    trackedDepartmentEntries(
+      "money"
+    );
+  
+  const totalMoney =
+    allMoneyEntries.reduce(
+      (sum, entry) =>
+        sum + entry.value,
+      0
+    );
+  
+  treasuryTotalMoney.textContent =
+    formatMoneyFromCents(totalMoney);
+  
+  /*
+   * The departmental pie is filtered by the
+   * independently selected week or month.
+   */
+  const moneyRange =
+    getTreasuryDateRange(
+      treasuryMoneyScale
+    );
+  
+  const moneyEntries =
+    trackedDepartmentEntries(
+      "money",
+      moneyRange
+    );
+  
+  const periodMoney =
     moneyEntries.reduce(
       (sum, entry) =>
         sum + entry.value,
       0
     );
-
-  treasuryTotalMoney.textContent =
-    formatMoneyFromCents(totalMoney);
-
+  
+  treasuryMoneyPeriod.textContent =
+    formatTreasuryPeriod(
+      treasuryMoneyScale,
+      moneyRange
+    );
+  
   renderTreasuryPie(
     treasuryMoneyPie,
     treasuryMoneyLegend,
     moneyEntries,
     formatMoneyFromCents,
-    formatMoneyFromCents(totalMoney)
+    formatMoneyFromCents(periodMoney)
   );
 
   const range =
@@ -1091,31 +1245,11 @@ function renderTreasury() {
       0
     );
 
-  const endDate = new Date(
-    `${range.end}T12:00:00`
-  );
-  
-  endDate.setDate(
-    endDate.getDate() - 1
-  );
-  
   treasuryTimePeriod.textContent =
-    treasuryTimeScale === "week"
-      ? (
-          `Current week: ` +
-          `${formatDate(range.start)}–` +
-          `${new Intl.DateTimeFormat(
-            manorLocale,
-            {
-              month: "short",
-              day: "numeric"
-            }
-          ).format(endDate)}`
-        )
-      : (
-          `Current month beginning ` +
-          `${formatDate(range.start)}`
-        );
+    formatTreasuryPeriod(
+      treasuryTimeScale,
+      range
+    );
   renderTreasuryPie(
     treasuryTimePie,
     treasuryTimeLegend,
@@ -1123,6 +1257,17 @@ function renderTreasury() {
     value => `${value} min`,
     `${totalMinutes} min`
   );
+
+  for (
+    const button
+    of treasuryMoneyScaleButtons
+  ) {
+    button.classList.toggle(
+      "is-active",
+      button.dataset.treasuryMoneyScale ===
+        treasuryMoneyScale
+    );
+  }
 
   for (
     const button
@@ -2579,6 +2724,22 @@ window.addEventListener(
   "hashchange",
   routeManorView
 );
+
+for (
+  const button
+  of treasuryMoneyScaleButtons
+) {
+  button.addEventListener(
+    "click",
+    () => {
+      treasuryMoneyScale =
+        button.dataset
+          .treasuryMoneyScale;
+
+      renderTreasury();
+    }
+  );
+}
 
 for (
   const button
