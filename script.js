@@ -1171,30 +1171,7 @@ function renderTreasury() {
   
   treasuryTotalMoney.textContent =
     formatMoneyFromCents(totalMoney);
-  
-    /*
-     * The large total remains cumulative across
-     * all recorded issues.
-     */
-  const allMoneyEntries =
-    trackedDepartmentEntries(
-      "money"
-    );
-  
-  const totalMoney =
-    allMoneyEntries.reduce(
-      (sum, entry) =>
-        sum + entry.value,
-      0
-    );
-  
-  treasuryTotalMoney.textContent =
-    formatMoneyFromCents(totalMoney);
-  
-  /*
-   * The departmental pie is filtered by the
-   * independently selected week or month.
-   */
+
   const moneyRange =
     getTreasuryDateRange(
       treasuryMoneyScale
