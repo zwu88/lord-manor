@@ -946,52 +946,6 @@ function formatTreasuryPeriod(
   return `Current month: ${formattedMonth}`;
 }
 
-function formatTreasuryPeriod(
-  scale,
-  range
-) {
-  if (scale === "week") {
-    const endDate = new Date(
-      `${range.end}T12:00:00`
-    );
-
-    endDate.setDate(
-      endDate.getDate() - 1
-    );
-
-    const formattedEnd =
-      new Intl.DateTimeFormat(
-        manorLocale,
-        {
-          month: "short",
-          day: "numeric",
-          year: "numeric"
-        }
-      ).format(endDate);
-
-    return (
-      `Current week: ` +
-      `${formatDate(range.start)}–` +
-      `${formattedEnd}`
-    );
-  }
-
-  const monthDate = new Date(
-    `${range.start}T12:00:00`
-  );
-
-  const formattedMonth =
-    new Intl.DateTimeFormat(
-      manorLocale,
-      {
-        month: "long",
-        year: "numeric"
-      }
-    ).format(monthDate);
-
-  return `Current month: ${formattedMonth}`;
-}
-
 function trackedDepartmentEntries(
   metric,
   range = null
