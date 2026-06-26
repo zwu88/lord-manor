@@ -415,13 +415,34 @@
   
       <div class="treasury-chart-stack">
         <section class="treasury-chart-panel">
-          <div class="section-heading">
-            <p class="label">Money distribution</p>
-            <h2>Expenditure by Department</h2>
-  
-            <p class="section-description">
-              Distribution of all recorded money expenditure.
-            </p>
+          <div class="section-heading heading-with-action">
+            <div>
+              <p class="label">Money distribution</p>
+              <h2>Expenditure by Department</h2>
+          
+              <p
+                id="treasury-money-period"
+                class="section-description"
+              ></p>
+            </div>
+          
+            <div class="treasury-scale-controls">
+              <button
+                type="button"
+                class="treasury-scale-button is-active"
+                data-treasury-money-scale="week"
+              >
+                This Week
+              </button>
+          
+              <button
+                type="button"
+                class="treasury-scale-button"
+                data-treasury-money-scale="month"
+              >
+                This Month
+              </button>
+            </div>
           </div>
   
           <div class="treasury-chart-layout">
