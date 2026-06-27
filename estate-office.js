@@ -220,6 +220,10 @@ function getOfficeProject(projectId) {
   );
 }
 
+function normalizeOfficeBoolean(value) {
+  return value === true || value === 1 || value === "1";
+}
+
 function populateProjectSelect(
   select,
   allowNoProject
@@ -272,8 +276,6 @@ function taskPayload(task, overrides = {}) {
     title: task.title,
     description: task.description || "",
     projectId: task.projectId || null,
-    completed: Boolean(task.completed),
-    completedAt: task.completedAt || null,
     ...overrides
   };
 }
@@ -300,10 +302,6 @@ function createTaskCard(task) {
     "article",
     "office-card"
   );
-
-  if (task.completed) {
-    card.classList.add("is-completed");
-  }
 
   const header = createOfficeElement(
     "div",
@@ -339,13 +337,7 @@ function createTaskCard(task) {
     );
   }
 
-  const status = createOfficeElement(
-    "span",
-    "office-status",
-    task.completed ? "Completed" : "Pending"
-  );
-
-  header.append(headingContainer, status);
+  header.append(headingContainer);
   card.append(header);
 
   if (task.description) {
@@ -367,7 +359,7 @@ function createTaskCard(task) {
     createOfficeElement(
       "button",
       "office-complete-button",
-      task.completed ? "Reopen" : "Complete"
+      "Done Today"
     );
 
   completeButton.type = "button";
@@ -375,6 +367,14 @@ function createTaskCard(task) {
   completeButton.addEventListener(
     "click",
     async () => {
+      const confirmed = window.confirm(
+        `Mark “${task.title}” as completed today? It will be removed from tomorrow’s plan and will not appear in tomorrow’s Chronicle.`
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
       completeButton.disabled = true;
 
       try {
@@ -385,26 +385,15 @@ function createTaskCard(task) {
               method: "PUT",
               body: JSON.stringify(
                 taskPayload(task, {
-                  completed: !task.completed,
-                  completedAt: task.completed
-                    ? null
-                    : task.completedAt
+                  completed: true
                 })
               )
             }
           );
 
         tomorrowTasks =
-          tomorrowTasks.map(item =>
-            item.id === task.id
-              ? {
-                  ...item,
-                  ...payload.task,
-                  createdAt:
-                    payload.task.createdAt ??
-                    item.createdAt
-                }
-              : item
+          tomorrowTasks.filter(
+            item => item.id !== task.id
           );
 
         renderTomorrowTasks();
@@ -489,16 +478,15 @@ function renderTomorrowTasks() {
   tomorrowTaskList.replaceChildren();
 
   const orderedTasks =
-    [...tomorrowTasks].sort(
+    tomorrowTasks
+      .filter(
+        task =>
+          !normalizeOfficeBoolean(
+            task.completed
+          )
+      )
+      .sort(
       (first, second) => {
-        const completedDifference =
-          Number(first.completed) -
-          Number(second.completed);
-
-        if (completedDifference !== 0) {
-          return completedDifference;
-        }
-
         return String(
           first.createdAt ?? ""
         ).localeCompare(
@@ -869,7 +857,13 @@ async function refreshEstateOffice() {
     projectPayload.projects ?? [];
 
   tomorrowTasks =
-    taskPayloadResult.tasks ?? [];
+    (taskPayloadResult.tasks ?? [])
+      .filter(
+        task =>
+          !normalizeOfficeBoolean(
+            task.completed
+          )
+      );
 
   officeMilestones =
     milestonePayloadResult.milestones ?? [];
@@ -885,7 +879,7 @@ async function refreshEstateOffice() {
   );
 
   emptyTasks.textContent =
-    "No orders have been prepared for tomorrow.";
+    "No Orders remain for tomorrow.";
 
   emptyMilestones.textContent =
     "No project milestones have been established.";
@@ -1029,11 +1023,6 @@ taskForm.addEventListener(
         : "Sealing...";
 
     try {
-      const existingTask =
-        tomorrowTasks.find(
-          task => task.id === editingTaskId
-        );
-
       const payload =
         await officeApiFetch(
           "/api/tasks",
@@ -1052,12 +1041,6 @@ taskForm.addEventListener(
                   .trim(),
               projectId:
                 taskProjectInput.value ||
-                null,
-              completed:
-                existingTask?.completed ||
-                false,
-              completedAt:
-                existingTask?.completedAt ||
                 null
             })
           }
@@ -1077,7 +1060,13 @@ taskForm.addEventListener(
               : task
           );
       } else {
-        tomorrowTasks.push(payload.task);
+        if (
+          !normalizeOfficeBoolean(
+            payload.task.completed
+          )
+        ) {
+          tomorrowTasks.push(payload.task);
+        }
       }
 
       renderTomorrowTasks();

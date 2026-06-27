@@ -1,4 +1,5 @@
 const TODAY = new Date().toISOString().slice(0, 10);
+const CHRONICLE_FORMAT_VERSION = 2;
 
 function addDays(dateString, days) {
   const date = new Date(`${dateString}T12:00:00`);
@@ -8,6 +9,10 @@ function addDays(dateString, days) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeBoolean(value) {
+  return value === true || value === 1 || value === "1";
 }
 
 function createInitialData() {
@@ -74,7 +79,7 @@ function createInitialData() {
         id: "task-today-2",
         taskDate: TODAY,
         title: "File the completed order",
-        description: "A completed order for Chronicle statistics.",
+        description: "A completed order excluded from new Chronicle payloads.",
         projectId: project.id,
         projectName: project.name,
         completed: true,
@@ -93,6 +98,30 @@ function createInitialData() {
         completedAt: null,
         createdAt: `${TODAY}T06:30:00.000Z`,
         updatedAt: `${TODAY}T06:30:00.000Z`
+      },
+      {
+        id: "task-tomorrow-2",
+        taskDate: addDays(TODAY, 1),
+        title: "Draft the council docket",
+        description: "A second active order for tomorrow.",
+        projectId: null,
+        projectName: null,
+        completed: 0,
+        completedAt: null,
+        createdAt: `${TODAY}T06:35:00.000Z`,
+        updatedAt: `${TODAY}T06:35:00.000Z`
+      },
+      {
+        id: "task-tomorrow-completed-early",
+        taskDate: addDays(TODAY, 1),
+        title: "Completed early tomorrow order",
+        description: "This order was resolved before its scheduled date.",
+        projectId: project.id,
+        projectName: project.name,
+        completed: 1,
+        completedAt: `${TODAY}T07:45:00.000Z`,
+        createdAt: `${TODAY}T06:38:00.000Z`,
+        updatedAt: `${TODAY}T07:45:00.000Z`
       }
     ],
     milestones: [
@@ -232,7 +261,7 @@ function emptyChronicleResponse(date) {
     presentation: {
       headline: "A Quiet Morning Across the Manor",
       lead:
-        "Today's dispatch contains 0 orders (0 pending and 0 completed), 0 recorded affairs, and 0 milestones overdue or due within the next seven days."
+        "Today's dispatch contains 0 orders, 0 recorded affairs, and 0 milestones overdue or due within the next seven days."
     },
     orders: [],
     issues: [],
@@ -263,16 +292,12 @@ function buildChronicleResponse(data, date) {
 
   const orders = clone(
     data.tasks
-      .filter(task => task.taskDate === date)
+      .filter(
+        task =>
+          task.taskDate === date &&
+          !normalizeBoolean(task.completed)
+      )
       .sort((first, second) => {
-        const completionDifference =
-          Number(first.completed) -
-          Number(second.completed);
-
-        if (completionDifference !== 0) {
-          return completionDifference;
-        }
-
         const createdDifference =
           String(first.createdAt || "")
             .localeCompare(
@@ -338,15 +363,11 @@ function buildChronicleResponse(data, date) {
       .slice(0, 5)
   );
 
-  const pending =
-    orders.filter(order => !order.completed)
-      .length;
-
   const statistics = {
     orders: {
       total: orders.length,
-      pending,
-      completed: orders.length - pending
+      pending: orders.length,
+      completed: 0
     },
     issues: {
       total: issues.length,
@@ -395,17 +416,18 @@ function buildChronicleResponse(data, date) {
     orders,
     issues,
     milestones,
-    statistics
+    statistics,
+    formatVersion: CHRONICLE_FORMAT_VERSION
   };
 }
 
 function buildPresentation(statistics) {
   let headline;
 
-  if (statistics.orders.pending > 0) {
+  if (statistics.orders.total > 0) {
     headline =
-      `${statistics.orders.pending} ${
-        statistics.orders.pending === 1
+      `${statistics.orders.total} ${
+        statistics.orders.total === 1
           ? "Order Awaits"
           : "Orders Await"
       } Attention`;
@@ -433,9 +455,7 @@ function buildPresentation(statistics) {
         statistics.orders.total === 1
           ? "order"
           : "orders"
-      } (${statistics.orders.pending} pending and ${
-        statistics.orders.completed
-      } completed), ${statistics.issues.total} ${
+      }, ${statistics.issues.total} ${
         statistics.issues.total === 1
           ? "recorded affair"
           : "recorded affairs"
@@ -449,11 +469,12 @@ function buildPresentation(statistics) {
 
 function createEditionFromChronicle(
   chronicle,
-  sealedAt
+  sealedAt,
+  formatVersion = CHRONICLE_FORMAT_VERSION
 ) {
   return {
     ...clone(chronicle),
-    formatVersion: 1,
+    formatVersion,
     sealedAt,
     updatedAt: sealedAt
   };
@@ -503,7 +524,7 @@ function createInitialEditions(data, options) {
           {
             id: "archived-order-1",
             taskDate: previousDate,
-            title: "Archived order",
+            title: "Archived pending order",
             description:
               "Stored previous-day order.",
             projectId: null,
@@ -514,10 +535,27 @@ function createInitialEditions(data, options) {
               `${previousDate}T06:00:00.000Z`,
             updatedAt:
               `${previousDate}T06:00:00.000Z`
+          },
+          {
+            id: "archived-completed-order-1",
+            taskDate: previousDate,
+            title: "Archived completed order",
+            description:
+              "Legacy completed order metadata.",
+            projectId: null,
+            projectName: null,
+            completed: true,
+            completedAt:
+              `${previousDate}T07:00:00.000Z`,
+            createdAt:
+              `${previousDate}T06:30:00.000Z`,
+            updatedAt:
+              `${previousDate}T07:00:00.000Z`
           }
         ]
       },
-      `${previousDate}T10:00:00.000Z`
+      `${previousDate}T10:00:00.000Z`,
+      1
     );
 
   if (!options.noTodayEdition) {
@@ -762,6 +800,10 @@ async function handleCollection(route, request, data, key, singular) {
       ? data[key].find(item => item.id === input.id)
       : null;
 
+  if (key === "tasks" && method === "PUT" && !existing) {
+    return json(route, { error: "The task was not found." }, 404);
+  }
+
   const record = {
     ...existing,
     ...input,
@@ -776,7 +818,23 @@ async function handleCollection(route, request, data, key, singular) {
   }
 
   if (key === "tasks") {
-    record.completedAt = record.completed ? record.completedAt || now : null;
+    if (method === "POST") {
+      record.completed = false;
+      record.completedAt = null;
+    } else {
+      const requestedCompleted =
+        Object.hasOwn(input, "completed")
+          ? normalizeBoolean(input.completed)
+          : normalizeBoolean(existing.completed);
+
+      record.completed = requestedCompleted;
+      record.completedAt =
+        requestedCompleted
+          ? normalizeBoolean(existing.completed)
+            ? existing.completedAt || now
+            : now
+          : null;
+    }
   }
 
   if (key === "milestones") {
@@ -874,6 +932,21 @@ async function handleApi(route, data, state) {
   }
 
   if (path === "/api/tasks") {
+    if (
+      request.method() === "PUT" &&
+      state.taskPutStatus
+    ) {
+      return json(
+        route,
+        {
+          error:
+            state.taskPutError ||
+            "Could not update tomorrow's order."
+        },
+        state.taskPutStatus
+      );
+    }
+
     return handleCollection(route, request, data, "tasks", "task");
   }
 
@@ -902,6 +975,10 @@ async function installMockApi(page, options = {}) {
       options.editionStorageUnavailable === true,
     sealConflict:
       options.sealConflict === true,
+    taskPutStatus:
+      options.taskPutStatus || null,
+    taskPutError:
+      options.taskPutError || null,
     editions: null
   };
 

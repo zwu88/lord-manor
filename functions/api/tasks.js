@@ -3,6 +3,11 @@ import {
   requireSession
 } from "../_lib/auth.js";
 
+import {
+  normalizeBoolean,
+  validateChronicleDate
+} from "../_lib/chronicle.js";
+
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -13,14 +18,39 @@ function jsonResponse(data, status = 200) {
   });
 }
 
-function validateDate(value) {
-  return (
-    typeof value === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(value)
-  );
+function readRequestedCompleted(
+  input,
+  defaultValue
+) {
+  if (!Object.hasOwn(input, "completed")) {
+    return defaultValue;
+  }
+
+  return normalizeBoolean(input.completed);
 }
 
-function validateTask(input) {
+export function resolveTaskCompletion(
+  existingCompleted,
+  existingCompletedAt,
+  requestedCompleted,
+  now
+) {
+  const wasCompleted =
+    normalizeBoolean(existingCompleted);
+
+  if (requestedCompleted) {
+    return wasCompleted
+      ? existingCompletedAt ?? now
+      : now;
+  }
+
+  return null;
+}
+
+function validateTask(
+  input,
+  { completedDefault = false } = {}
+) {
   const taskDate =
     typeof input.taskDate === "string"
       ? input.taskDate.trim()
@@ -42,9 +72,13 @@ function validateTask(input) {
       ? input.projectId.trim()
       : null;
 
-  const completed = input.completed === true;
+  const completed =
+    readRequestedCompleted(
+      input,
+      completedDefault
+    );
 
-  if (!validateDate(taskDate)) {
+  if (!validateChronicleDate(taskDate)) {
     return {
       valid: false,
       error: "The task date is invalid."
@@ -112,7 +146,7 @@ export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const date = url.searchParams.get("date");
 
-  if (!validateDate(date)) {
+  if (!validateChronicleDate(date)) {
     return jsonResponse(
       {
         error: "A valid task date is required."
@@ -226,8 +260,8 @@ export async function onRequestPost(context) {
     id: crypto.randomUUID(),
     ...validation.task,
     projectName: project?.name ?? null,
-    completedAt:
-      validation.task.completed ? now : null,
+    completed: false,
+    completedAt: null,
     createdAt: now,
     updatedAt: now
   };
@@ -254,8 +288,8 @@ export async function onRequestPost(context) {
         task.title,
         task.description,
         task.projectId,
-        task.completed ? 1 : 0,
-        task.completedAt,
+        0,
+        null,
         task.createdAt,
         task.updatedAt
       )
@@ -321,7 +355,32 @@ export async function onRequestPut(context) {
     );
   }
 
-  const validation = validateTask(input);
+  const existingTask = await context.env.DB
+    .prepare(`
+      SELECT
+        completed,
+        completed_at AS completedAt,
+        created_at AS createdAt
+      FROM next_day_tasks
+      WHERE id = ?
+    `)
+    .bind(input.id)
+    .first();
+  
+  if (!existingTask) {
+    return jsonResponse(
+      {
+        error: "The task was not found."
+      },
+      404
+    );
+  }
+
+  const validation = validateTask(input, {
+    completedDefault: normalizeBoolean(
+      existingTask.completed
+    )
+  });
 
   if (!validation.valid) {
     return jsonResponse(
@@ -353,27 +412,12 @@ export async function onRequestPut(context) {
   const now = new Date().toISOString();
 
   const completedAt =
-    validation.task.completed
-      ? input.completedAt || now
-      : null;
-
-  const existingTask = await context.env.DB
-    .prepare(`
-      SELECT created_at AS createdAt
-      FROM next_day_tasks
-      WHERE id = ?
-    `)
-    .bind(input.id)
-    .first();
-  
-  if (!existingTask) {
-    return jsonResponse(
-      {
-        error: "The task was not found."
-      },
-      404
+    resolveTaskCompletion(
+      existingTask.completed,
+      existingTask.completedAt,
+      validation.task.completed,
+      now
     );
-  }
 
   try {
     const result = await context.env.DB
