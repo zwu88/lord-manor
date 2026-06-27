@@ -40,6 +40,71 @@
       "#refresh-chronicle-button"
     );
 
+  const previousDayButton =
+    document.querySelector(
+      "#chronicle-previous-day"
+    );
+
+  const nextDayButton =
+    document.querySelector(
+      "#chronicle-next-day"
+    );
+
+  const todayButton =
+    document.querySelector(
+      "#chronicle-today-button"
+    );
+
+  const dateInput =
+    document.querySelector(
+      "#chronicle-date-input"
+    );
+
+  const sealButton =
+    document.querySelector(
+      "#seal-chronicle-edition"
+    );
+
+  const regenerateButton =
+    document.querySelector(
+      "#regenerate-chronicle-edition"
+    );
+
+  const archiveSelect =
+    document.querySelector(
+      "#chronicle-edition-select"
+    );
+
+  const archiveEmpty =
+    document.querySelector(
+      "#chronicle-archive-empty"
+    );
+
+  const editionStatus =
+    document.querySelector(
+      "#chronicle-edition-status"
+    );
+
+  const editionDetail =
+    document.querySelector(
+      "#chronicle-edition-detail"
+    );
+
+  const editionError =
+    document.querySelector(
+      "#chronicle-edition-error"
+    );
+
+  const ordersHeading =
+    document.querySelector(
+      "#chronicle-orders-heading"
+    );
+
+  const recordHeading =
+    document.querySelector(
+      "#chronicle-record-heading"
+    );
+
   const recentIssueList =
     document.querySelector(
       "#recent-issue-list"
@@ -63,7 +128,20 @@
     taskList,
     issueList,
     milestoneList,
-    refreshButton
+    refreshButton,
+    previousDayButton,
+    nextDayButton,
+    todayButton,
+    dateInput,
+    sealButton,
+    regenerateButton,
+    archiveSelect,
+    archiveEmpty,
+    editionStatus,
+    editionDetail,
+    editionError,
+    ordersHeading,
+    recordHeading
   ];
 
   if (
@@ -78,9 +156,16 @@
     return;
   }
 
+  const STORAGE_UNAVAILABLE_CODE =
+    "CHRONICLE_EDITION_STORAGE_UNAVAILABLE";
+
   let refreshTimer = null;
-  let refreshInProgress = false;
-  let refreshRequested = false;
+  let selectedDate = getLocalDateString();
+  let todayDate = selectedDate;
+  let currentMode = "loading";
+  let archiveEditions = [];
+  let storageAvailable = true;
+  let requestSequence = 0;
 
   function getLocalDateString() {
     const now = new Date();
@@ -93,6 +178,37 @@
     )
       .toISOString()
       .slice(0, 10);
+  }
+
+  function addDays(dateString, days) {
+    const date = new Date(
+      `${dateString}T00:00:00.000Z`
+    );
+
+    date.setUTCDate(
+      date.getUTCDate() + days
+    );
+
+    return date.toISOString().slice(0, 10);
+  }
+
+  function isValidDateString(value) {
+    if (
+      typeof value !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(value)
+    ) {
+      return false;
+    }
+
+    const date = new Date(
+      `${value}T00:00:00.000Z`
+    );
+
+    return (
+      !Number.isNaN(date.getTime()) &&
+      date.toISOString().slice(0, 10) ===
+        value
+    );
   }
 
   function formatDate(
@@ -117,8 +233,47 @@
     ).format(date);
   }
 
-  async function chronicleFetch(path) {
+  function formatTimestamp(value) {
+    if (!value) {
+      return "";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat(
+      "en-US",
+      {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+      }
+    ).format(date);
+  }
+
+  async function apiFetch(path, options = {}) {
+    const headers = new Headers(
+      options.headers || {}
+    );
+
+    if (
+      options.body &&
+      !headers.has("Content-Type")
+    ) {
+      headers.set(
+        "Content-Type",
+        "application/json"
+      );
+    }
+
     const response = await fetch(path, {
+      ...options,
+      headers,
       credentials: "same-origin",
       cache: "no-store"
     });
@@ -132,13 +287,38 @@
     }
 
     if (!response.ok) {
-      throw new Error(
+      const error = new Error(
         payload?.error ||
         `The server returned status ${response.status}.`
       );
+
+      error.status = response.status;
+      error.code = payload?.code || null;
+      error.payload = payload;
+
+      throw error;
     }
 
     return payload;
+  }
+
+  function createElement(
+    tag,
+    className,
+    text
+  ) {
+    const element =
+      document.createElement(tag);
+
+    if (className) {
+      element.className = className;
+    }
+
+    if (text !== undefined) {
+      element.textContent = text;
+    }
+
+    return element;
   }
 
   function defaultStatistics() {
@@ -241,23 +421,102 @@
     };
   }
 
-  function createElement(
-    tag,
-    className,
-    text
+  function fallbackPresentation(
+    statistics
   ) {
-    const element =
-      document.createElement(tag);
-
-    if (className) {
-      element.className = className;
+    if (statistics.orders.pending > 0) {
+      return {
+        headline:
+          `${statistics.orders.pending} ${
+            statistics.orders.pending === 1
+              ? "Order Awaits"
+              : "Orders Await"
+          } Attention`
+      };
     }
 
-    if (text !== undefined) {
-      element.textContent = text;
+    if (statistics.issues.total > 0) {
+      return {
+        headline:
+          `${statistics.issues.total} ${
+            statistics.issues.total === 1
+              ? "Affair Enters"
+              : "Affairs Enter"
+          } Today's Record`
+      };
     }
 
-    return element;
+    if (statistics.milestones.total > 0) {
+      return {
+        headline:
+          "Council Deadlines Approach"
+      };
+    }
+
+    return {
+      headline:
+        "A Quiet Morning Across the Manor"
+    };
+  }
+
+  function normalizePayload(payload) {
+    const statistics =
+      normalizeStatistics(
+        payload?.statistics
+      );
+
+    const presentation = {
+      ...fallbackPresentation(
+        statistics
+      ),
+      ...(payload?.presentation || {})
+    };
+
+    if (!presentation.lead) {
+      presentation.lead =
+        `Today's dispatch contains ${
+          statistics.orders.total
+        } ${
+          statistics.orders.total === 1
+            ? "order"
+            : "orders"
+        } (${statistics.orders.pending} pending and ${
+          statistics.orders.completed
+        } completed), ${statistics.issues.total} ${
+          statistics.issues.total === 1
+            ? "recorded affair"
+            : "recorded affairs"
+        }, and ${statistics.milestones.total} ${
+          statistics.milestones.total === 1
+            ? "milestone"
+            : "milestones"
+        } overdue or due within the next seven days.`;
+    }
+
+    return {
+      date:
+        payload?.date || selectedDate,
+      horizonDate:
+        payload?.horizonDate || "",
+      presentation,
+      orders:
+        Array.isArray(payload?.orders)
+          ? payload.orders
+          : [],
+      issues:
+        Array.isArray(payload?.issues)
+          ? payload.issues
+          : [],
+      milestones:
+        Array.isArray(payload?.milestones)
+          ? payload.milestones
+          : [],
+      statistics,
+      formatVersion:
+        payload?.formatVersion || 1,
+      sealedAt: payload?.sealedAt || null,
+      updatedAt: payload?.updatedAt || null
+    };
   }
 
   function appendEntry(
@@ -297,7 +556,7 @@
     list.append(entry);
   }
 
-  function renderTasks(tasks) {
+  function renderTasks(tasks, date) {
     taskList.replaceChildren();
 
     if (tasks.length === 0) {
@@ -305,7 +564,9 @@
         createElement(
           "p",
           "chronicle-empty",
-          "No orders were prepared for today."
+          date === todayDate
+            ? "No orders were prepared for today."
+            : "No orders were prepared for this date."
         )
       );
 
@@ -334,7 +595,7 @@
     }
   }
 
-  function renderIssues(issues) {
+  function renderIssues(issues, date) {
     issueList.replaceChildren();
 
     if (issues.length === 0) {
@@ -342,7 +603,9 @@
         createElement(
           "p",
           "chronicle-empty",
-          "No affairs have yet been entered today."
+          date === todayDate
+            ? "No affairs have yet been entered today."
+            : "No affairs were entered for this date."
         )
       );
 
@@ -379,7 +642,7 @@
 
   function renderMilestones(
     milestones,
-    today
+    date
   ) {
     milestoneList.replaceChildren();
 
@@ -397,7 +660,7 @@
 
     for (const milestone of milestones) {
       const timing =
-        milestone.targetDate < today
+        milestone.targetDate < date
           ? "Overdue"
           : `Due ${formatDate(
               milestone.targetDate,
@@ -424,77 +687,183 @@
     }
   }
 
-  function setHeadline(statistics) {
-    if (statistics.orders.pending > 0) {
-      headlineElement.textContent =
-        `${statistics.orders.pending} ${
-          statistics.orders.pending === 1
-            ? "Order Awaits"
-            : "Orders Await"
-        } Attention`;
-    } else if (statistics.issues.total > 0) {
-      headlineElement.textContent =
-        `${statistics.issues.total} ${
-          statistics.issues.total === 1
-            ? "Affair Enters"
-            : "Affairs Enter"
-        } Today's Record`;
-    } else if (
-      statistics.milestones.total > 0
-    ) {
-      headlineElement.textContent =
-        "Council Deadlines Approach";
-    } else {
-      headlineElement.textContent =
-        "A Quiet Morning Across the Manor";
-    }
-
-    leadElement.textContent =
-      `Today's dispatch contains ${
-        statistics.orders.total
-      } ${
-        statistics.orders.total === 1
-          ? "order"
-          : "orders"
-      } (${statistics.orders.pending} pending and ${
-        statistics.orders.completed
-      } completed), ${statistics.issues.total} ${
-        statistics.issues.total === 1
-          ? "recorded affair"
-          : "recorded affairs"
-      }, and ${statistics.milestones.total} ${
-        statistics.milestones.total === 1
-          ? "milestone"
-          : "milestones"
-      } overdue or due within the next seven days.`;
+  function setError(message) {
+    editionError.hidden = !message;
+    editionError.textContent = message || "";
   }
 
-  async function refreshChronicle() {
+  function setButtonState() {
+    const isToday =
+      selectedDate === todayDate;
+
+    previousDayButton.disabled =
+      currentMode === "loading";
+
+    nextDayButton.disabled =
+      currentMode === "loading" ||
+      isToday;
+
+    todayButton.disabled =
+      currentMode === "loading" ||
+      isToday;
+
+    dateInput.max = todayDate;
+    dateInput.value = selectedDate;
+
+    refreshButton.disabled =
+      currentMode === "loading" ||
+      currentMode === "sealed";
+
+    sealButton.disabled =
+      currentMode !== "live" ||
+      !storageAvailable;
+
+    regenerateButton.disabled =
+      currentMode !== "sealed" ||
+      !storageAvailable;
+
+    archiveSelect.disabled =
+      !storageAvailable ||
+      archiveEditions.length === 0;
+  }
+
+  function renderArchive() {
+    archiveSelect.replaceChildren();
+
     if (
-      !manorApplication ||
-      manorApplication.hidden
+      !storageAvailable ||
+      archiveEditions.length === 0
     ) {
+      const option =
+        document.createElement("option");
+
+      option.value = "";
+      option.textContent =
+        storageAvailable
+          ? "No sealed editions"
+          : "Storage unavailable";
+
+      archiveSelect.append(option);
+      archiveEmpty.hidden = false;
+      archiveEmpty.textContent =
+        storageAvailable
+          ? "No editions have been sealed yet."
+          : "Permanent edition storage is unavailable.";
+
       return;
     }
 
-    if (refreshInProgress) {
-      refreshRequested = true;
+    archiveEmpty.hidden = true;
+
+    const placeholder =
+      document.createElement("option");
+
+    placeholder.value = "";
+    placeholder.textContent =
+      "Choose a sealed edition";
+
+    archiveSelect.append(placeholder);
+
+    for (const edition of archiveEditions) {
+      const option =
+        document.createElement("option");
+
+      option.value = edition.date;
+      option.textContent =
+        `${formatDate(edition.date)} — ${
+          edition.headline
+        }`;
+
+      archiveSelect.append(option);
+    }
+
+    archiveSelect.value =
+      archiveEditions.some(
+        edition =>
+          edition.date === selectedDate
+      )
+        ? selectedDate
+        : "";
+  }
+
+  function renderStatus(payload) {
+    if (!storageAvailable) {
+      editionStatus.textContent =
+        "Permanent Storage Unavailable";
+
+      editionDetail.textContent =
+        "Showing a live reconstruction. Apply the Chronicle editions migration to seal permanent snapshots.";
+
       return;
     }
 
-    refreshInProgress = true;
-    refreshRequested = false;
+    if (currentMode === "sealed") {
+      editionStatus.textContent =
+        "Sealed Edition";
 
-    refreshButton.disabled = true;
-    refreshButton.textContent =
-      "Opening Dispatch...";
+      const sealedAt =
+        formatTimestamp(payload.sealedAt);
 
-    const today =
-      getLocalDateString();
+      const updatedAt =
+        formatTimestamp(payload.updatedAt);
+
+      editionDetail.textContent =
+        `Edition date: ${
+          formatDate(payload.date)
+        }. Sealed: ${
+          sealedAt || "unknown"
+        }${
+          updatedAt && updatedAt !== sealedAt
+            ? `. Last regenerated: ${updatedAt}`
+            : ""
+        }.`;
+
+      return;
+    }
+
+    if (currentMode === "live") {
+      editionStatus.textContent =
+        "Unsealed Reconstruction";
+
+      editionDetail.textContent =
+        `Edition date: ${
+          formatDate(payload.date)
+        }. This preview is rebuilt from live manor records and has not been sealed.`;
+
+      return;
+    }
+
+    editionStatus.textContent =
+      "Opening Chronicle...";
+
+    editionDetail.textContent = "";
+  }
+
+  function renderChronicle(
+    payload,
+    mode
+  ) {
+    const normalized =
+      normalizePayload(payload);
+
+    currentMode = mode;
+
+    const historical =
+      normalized.date !== todayDate;
+
+    ordersHeading.textContent =
+      historical
+        ? "Orders of the Day"
+        : "Today’s Orders";
+
+    recordHeading.textContent =
+      historical
+        ? "Record of the Day"
+        : "Today’s Record";
 
     currentDateElement.textContent =
       formatDate(
-        today,
+        normalized.date,
         {
           weekday: "long",
           year: "numeric",
@@ -503,46 +872,152 @@
         }
       );
 
+    headlineElement.textContent =
+      normalized.presentation.headline;
+
+    leadElement.textContent =
+      normalized.presentation.lead;
+
+    renderTasks(
+      normalized.orders,
+      normalized.date
+    );
+
+    renderIssues(
+      normalized.issues,
+      normalized.date
+    );
+
+    renderMilestones(
+      normalized.milestones,
+      normalized.date
+    );
+
+    renderStatus(normalized);
+    renderArchive();
+    setButtonState();
+  }
+
+  async function loadArchive() {
+    if (!storageAvailable) {
+      renderArchive();
+      return;
+    }
+
     try {
       const payload =
-        await chronicleFetch(
-          `/api/chronicle?date=${
-            encodeURIComponent(today)
-          }`
+        await apiFetch(
+          "/api/chronicle-editions"
         );
 
-      const tasks =
-        Array.isArray(payload?.orders)
-          ? payload.orders
+      archiveEditions =
+        Array.isArray(payload?.editions)
+          ? payload.editions
           : [];
 
-      const todayIssues =
-        Array.isArray(payload?.issues)
-          ? payload.issues
-          : [];
-
-      const watchedMilestones =
-        Array.isArray(payload?.milestones)
-          ? payload.milestones
-          : [];
-
-      const statistics =
-        normalizeStatistics(
-          payload?.statistics
-        );
-
-      setHeadline(
-        statistics
-      );
-
-      renderTasks(tasks);
-      renderIssues(todayIssues);
-
-      renderMilestones(
-        watchedMilestones,
-        today
-      );
+      renderArchive();
     } catch (error) {
+      if (
+        error.code ===
+        STORAGE_UNAVAILABLE_CODE
+      ) {
+        storageAvailable = false;
+        archiveEditions = [];
+        renderArchive();
+        return;
+      }
+
+      throw error;
+    }
+  }
+
+  async function loadLive(
+    date,
+    sequence
+  ) {
+    const payload =
+      await apiFetch(
+        `/api/chronicle?date=${
+          encodeURIComponent(date)
+        }`
+      );
+
+    if (sequence !== requestSequence) {
+      return;
+    }
+
+    renderChronicle(payload, "live");
+  }
+
+  async function loadEditionOrLive(
+    date,
+    { forceLive = false } = {}
+  ) {
+    if (
+      !isValidDateString(date) ||
+      date > todayDate
+    ) {
+      return;
+    }
+
+    const sequence =
+      requestSequence + 1;
+
+    requestSequence = sequence;
+    selectedDate = date;
+    currentMode = "loading";
+    setError("");
+    setButtonState();
+
+    try {
+      if (!forceLive) {
+        await loadArchive();
+      }
+
+      if (
+        storageAvailable &&
+        !forceLive
+      ) {
+        try {
+          const payload =
+            await apiFetch(
+              `/api/chronicle-editions?date=${
+                encodeURIComponent(date)
+              }`
+            );
+
+          if (
+            sequence !== requestSequence
+          ) {
+            return;
+          }
+
+          renderChronicle(
+            payload.edition,
+            "sealed"
+          );
+          return;
+        } catch (error) {
+          if (error.status !== 404) {
+            if (
+              error.code ===
+              STORAGE_UNAVAILABLE_CODE
+            ) {
+              storageAvailable = false;
+              archiveEditions = [];
+            } else {
+              throw error;
+            }
+          }
+        }
+      }
+
+      await loadLive(date, sequence);
+    } catch (error) {
+      if (sequence !== requestSequence) {
+        return;
+      }
+
       headlineElement.textContent =
         "The Morning Dispatch Could Not Be Opened";
 
@@ -552,17 +1027,113 @@
       taskList.replaceChildren();
       issueList.replaceChildren();
       milestoneList.replaceChildren();
+
+      currentMode = "error";
+      setError(error.message);
+      setButtonState();
+    }
+  }
+
+  async function refreshPreview() {
+    refreshButton.disabled = true;
+    refreshButton.textContent =
+      "Opening Preview...";
+
+    try {
+      await loadEditionOrLive(
+        selectedDate,
+        {
+          forceLive: true
+        }
+      );
     } finally {
-      refreshButton.disabled = false;
-
       refreshButton.textContent =
-        "Refresh Dispatch";
+        "Refresh Preview";
+      setButtonState();
+    }
+  }
 
-      refreshInProgress = false;
+  async function sealEdition() {
+    const previousMode = currentMode;
 
-      if (refreshRequested) {
-        scheduleRefresh();
-      }
+    window.clearTimeout(refreshTimer);
+    currentMode = "loading";
+    sealButton.disabled = true;
+    sealButton.textContent =
+      "Sealing...";
+    setButtonState();
+
+    try {
+      const payload =
+        await apiFetch(
+          "/api/chronicle-editions",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              date: selectedDate
+            })
+          }
+        );
+
+      await loadArchive();
+      renderChronicle(
+        payload.edition,
+        "sealed"
+      );
+      setError("");
+    } catch (error) {
+      currentMode = previousMode;
+      setError(error.message);
+    } finally {
+      sealButton.textContent =
+        "Seal Edition";
+      setButtonState();
+    }
+  }
+
+  async function regenerateEdition() {
+    const confirmed = window.confirm(
+      "Regenerate this sealed Chronicle edition from the current manor records?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const previousMode = currentMode;
+
+    window.clearTimeout(refreshTimer);
+    currentMode = "loading";
+    regenerateButton.disabled = true;
+    regenerateButton.textContent =
+      "Regenerating...";
+    setButtonState();
+
+    try {
+      const payload =
+        await apiFetch(
+          "/api/chronicle-editions",
+          {
+            method: "PUT",
+            body: JSON.stringify({
+              date: selectedDate
+            })
+          }
+        );
+
+      await loadArchive();
+      renderChronicle(
+        payload.edition,
+        "sealed"
+      );
+      setError("");
+    } catch (error) {
+      currentMode = previousMode;
+      setError(error.message);
+    } finally {
+      regenerateButton.textContent =
+        "Regenerate Edition";
+      setButtonState();
     }
   }
 
@@ -574,31 +1145,139 @@
     refreshTimer =
       window.setTimeout(
         () => {
-          refreshChronicle().catch(
-            console.error
-          );
+          if (
+            currentMode === "live" &&
+            selectedDate === todayDate
+          ) {
+            loadEditionOrLive(
+              selectedDate,
+              {
+                forceLive: true
+              }
+            ).catch(console.error);
+          }
         },
         120
       );
   }
 
+  function initializeChronicle() {
+    todayDate = getLocalDateString();
+    dateInput.max = todayDate;
+
+    if (
+      !isValidDateString(selectedDate) ||
+      selectedDate > todayDate
+    ) {
+      selectedDate = todayDate;
+    }
+
+    loadEditionOrLive(
+      selectedDate
+    ).catch(console.error);
+  }
+
+  previousDayButton.addEventListener(
+    "click",
+    () => {
+      loadEditionOrLive(
+        addDays(selectedDate, -1)
+      ).catch(console.error);
+    }
+  );
+
+  nextDayButton.addEventListener(
+    "click",
+    () => {
+      const nextDate =
+        addDays(selectedDate, 1);
+
+      if (nextDate <= todayDate) {
+        loadEditionOrLive(
+          nextDate
+        ).catch(console.error);
+      }
+    }
+  );
+
+  todayButton.addEventListener(
+    "click",
+    () => {
+      todayDate = getLocalDateString();
+
+      loadEditionOrLive(
+        todayDate
+      ).catch(console.error);
+    }
+  );
+
+  dateInput.addEventListener(
+    "change",
+    () => {
+      const nextDate =
+        dateInput.value;
+
+      if (
+        !isValidDateString(nextDate) ||
+        nextDate > todayDate
+      ) {
+        dateInput.value = selectedDate;
+        setError(
+          "Choose today or an earlier valid date."
+        );
+        return;
+      }
+
+      loadEditionOrLive(
+        nextDate
+      ).catch(console.error);
+    }
+  );
+
+  archiveSelect.addEventListener(
+    "change",
+    () => {
+      if (archiveSelect.value) {
+        loadEditionOrLive(
+          archiveSelect.value
+        ).catch(console.error);
+      }
+    }
+  );
+
   refreshButton.addEventListener(
     "click",
     () => {
-      refreshChronicle().catch(
-        error => {
-          window.alert(
-            error.message
-          );
-        }
-      );
+      if (currentMode === "live") {
+        refreshPreview().catch(error => {
+          setError(error.message);
+        });
+      }
+    }
+  );
+
+  sealButton.addEventListener(
+    "click",
+    () => {
+      sealEdition().catch(error => {
+        setError(error.message);
+      });
+    }
+  );
+
+  regenerateButton.addEventListener(
+    "click",
+    () => {
+      regenerateEdition().catch(error => {
+        setError(error.message);
+      });
     }
   );
 
   const applicationObserver =
     new MutationObserver(() => {
       if (!manorApplication.hidden) {
-        scheduleRefresh();
+        initializeChronicle();
       }
     });
 
@@ -631,6 +1310,10 @@
     }
   }
 
+  setButtonState();
+
   window.refreshManorChronicle =
-    refreshChronicle;
+    () => loadEditionOrLive(
+      selectedDate
+    );
 })();

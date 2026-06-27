@@ -5,12 +5,24 @@ const {
 } = require("./helpers/mock-api");
 const { installErrorMonitor } = require("./helpers/page-errors");
 
-async function openManor(page) {
-  await installMockApi(page, { authenticated: true });
+function addDays(dateString, days) {
+  const date = new Date(`${dateString}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+async function openManor(page, options = {}) {
+  const fixture = await installMockApi(page, {
+    authenticated: true,
+    ...options
+  });
+
   await page.goto("/");
   await expect(page.locator("#manor-application")).toBeVisible();
   await expect(page.locator("#recent-issue-list .issue-card")).toHaveCount(2);
   await expect(page.locator("#tomorrow-task-list .office-card")).toHaveCount(1);
+
+  return fixture;
 }
 
 test.beforeEach(async ({ page }) => {
@@ -49,6 +61,7 @@ test("renders the authenticated homepage and Chronicle", async ({ page }) => {
   await expect(page.locator("#chronicle-headline")).not.toHaveText(
     "Opening the Morning Dispatch..."
   );
+  await expect(page.locator("#chronicle-edition-status")).toHaveText("Sealed Edition");
 });
 
 test("opens, closes, creates, and edits issues", async ({ page }) => {
@@ -162,7 +175,9 @@ test("updates Treasury week and month controls independently", async ({ page }) 
 });
 
 test("loads and refreshes the deterministic Manor Chronicle", async ({ page }) => {
-  await openManor(page);
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
+
+  await openManor(page, { noTodayEdition: true });
 
   await expect(page.locator("#chronicle-headline")).not.toHaveText(
     "Opening the Morning Dispatch..."
@@ -187,13 +202,21 @@ test("loads and refreshes the deterministic Manor Chronicle", async ({ page }) =
     "Completed Chronicle milestone"
   );
 
-  await page.getByRole("button", { name: "Refresh Dispatch" }).click();
-  await expect(page.getByRole("button", { name: "Refresh Dispatch" })).toBeEnabled();
+  await expect(page.locator("#chronicle-edition-status")).toHaveText(
+    "Unsealed Reconstruction"
+  );
+  await expect(page.getByRole("button", { name: "Seal Edition" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Regenerate Edition" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Refresh Preview" }).click();
+  await expect(page.getByRole("button", { name: "Refresh Preview" })).toBeEnabled();
 });
 
 test("uses one unified Chronicle request for a manual refresh", async ({ page }) => {
-  await openManor(page);
-  await expect(page.getByRole("button", { name: "Refresh Dispatch" })).toBeEnabled();
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
+
+  await openManor(page, { noTodayEdition: true });
+  await expect(page.getByRole("button", { name: "Refresh Preview" })).toBeEnabled();
   await page.waitForTimeout(250);
 
   const chronicleRequests = [];
@@ -215,10 +238,10 @@ test("uses one unified Chronicle request for a manual refresh", async ({ page })
         response.request().method() === "GET"
       );
     }),
-    page.getByRole("button", { name: "Refresh Dispatch" }).click()
+    page.getByRole("button", { name: "Refresh Preview" }).click()
   ]);
 
-  await expect(page.getByRole("button", { name: "Refresh Dispatch" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Refresh Preview" })).toBeEnabled();
   await page.waitForTimeout(50);
 
   expect(chronicleRequests).toHaveLength(1);
@@ -229,11 +252,15 @@ test("uses one unified Chronicle request for a manual refresh", async ({ page })
 
 test("shows a readable Chronicle error state", async ({ page }) => {
   page.errorMonitor.allowConsoleError(
+    /Failed to load resource:.*404/
+  );
+  page.errorMonitor.allowConsoleError(
     /Failed to load resource:.*500/
   );
 
   await installMockApi(page, {
     authenticated: true,
+    noTodayEdition: true,
     chronicleStatus: 500,
     chronicleError: "Chronicle fixture failure."
   });
@@ -246,16 +273,19 @@ test("shows a readable Chronicle error state", async ({ page }) => {
   await expect(page.locator("#chronicle-lead")).toHaveText(
     "Chronicle fixture failure."
   );
-  await expect(page.getByRole("button", { name: "Refresh Dispatch" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Refresh Preview" })).toBeEnabled();
 });
 
 test("renders quiet Chronicle empty states", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
+
   const response = emptyChronicleResponse(
     new Date().toISOString().slice(0, 10)
   );
 
   await installMockApi(page, {
     authenticated: true,
+    noTodayEdition: true,
     chronicleResponse: response
   });
 
@@ -273,6 +303,238 @@ test("renders quiet Chronicle empty states", async ({ page }) => {
   await expect(page.locator("#chronicle-milestone-list")).toContainText(
     "No overdue or near-term milestones require attention."
   );
+});
+
+test("loads sealed Chronicle editions before live records", async ({ page }) => {
+  const fixture = await openManor(page);
+
+  await expect(page.locator("#chronicle-edition-status")).toHaveText("Sealed Edition");
+  await expect(page.locator("#chronicle-headline")).toHaveText("Sealed Fixture Edition");
+  await expect(page.locator("#chronicle-lead")).toHaveText(
+    "This sealed fixture edition is stored as a permanent snapshot."
+  );
+  await expect(page.locator("#chronicle-task-list")).toContainText("Read the morning orders");
+  await expect(page.locator("#chronicle-issue-list")).toContainText("Smoke test fixture issue");
+  await expect(page.locator("#chronicle-milestone-list")).toContainText(
+    "Overdue smoke milestone"
+  );
+  await expect(page.locator("#chronicle-edition-select")).toContainText(
+    "Sealed Fixture Edition"
+  );
+  await expect(page.locator("#chronicle-edition-select")).toHaveValue(fixture.today);
+  await expect(page.getByRole("button", { name: "Seal Edition" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Regenerate Edition" })).toBeEnabled();
+});
+
+test("seals a live Chronicle preview without a page reload", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
+
+  const fixture = await openManor(page, { noTodayEdition: true });
+  const mainFrame = page.mainFrame();
+  let navigations = 0;
+  const postedBodies = [];
+
+  page.on("framenavigated", frame => {
+    if (frame === mainFrame) {
+      navigations += 1;
+    }
+  });
+
+  page.on("request", request => {
+    const url = new URL(request.url());
+
+    if (
+      url.pathname === "/api/chronicle-editions" &&
+      request.method() === "POST"
+    ) {
+      postedBodies.push(JSON.parse(request.postData() || "{}"));
+    }
+  });
+
+  await expect(page.locator("#chronicle-edition-status")).toHaveText(
+    "Unsealed Reconstruction"
+  );
+
+  await Promise.all([
+    page.waitForResponse(response => {
+      const request = response.request();
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/chronicle-editions" &&
+        request.method() === "POST" &&
+        response.status() === 201
+      );
+    }),
+    page.getByRole("button", { name: "Seal Edition" }).click()
+  ]);
+
+  await expect(page.locator("#chronicle-edition-status")).toHaveText("Sealed Edition");
+  await expect(page.locator("#chronicle-edition-select")).toContainText(
+    "1 Order Awaits Attention"
+  );
+  await expect(page.locator("#chronicle-edition-select")).toHaveValue(fixture.today);
+  expect(postedBodies).toEqual([{ date: fixture.today }]);
+  expect(navigations).toBe(0);
+});
+
+test("shows duplicate seal conflicts without getting stuck", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*409/);
+
+  await openManor(page, {
+    noTodayEdition: true,
+    sealConflict: true
+  });
+
+  await expect(page.locator("#chronicle-edition-status")).toHaveText(
+    "Unsealed Reconstruction"
+  );
+  await Promise.all([
+    page.waitForResponse(response => {
+      const request = response.request();
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/chronicle-editions" &&
+        request.method() === "POST" &&
+        response.status() === 409
+      );
+    }),
+    page.getByRole("button", { name: "Seal Edition" }).click()
+  ]);
+
+  await expect(page.locator("#chronicle-edition-error")).toContainText(
+    "already been sealed"
+  );
+  await expect(page.getByRole("button", { name: "Seal Edition" })).toBeEnabled();
+});
+
+test("keeps sealed editions immutable until regeneration", async ({ page }) => {
+  const fixture = await openManor(page);
+
+  await expect(page.locator("#chronicle-headline")).toHaveText("Sealed Fixture Edition");
+  await expect(page.locator("#chronicle-issue-list")).toContainText("Smoke test fixture issue");
+
+  fixture.data.issues[0].title = "Changed live issue";
+  fixture.data.issues[0].description = "Changed after the edition was sealed.";
+
+  await page.getByRole("button", { name: "Previous Day" }).click();
+  await expect(page.locator("#chronicle-headline")).toHaveText("Previous Sealed Edition");
+  await page.getByRole("button", { name: "Next Day" }).click();
+  await expect(page.locator("#chronicle-headline")).toHaveText("Sealed Fixture Edition");
+  await expect(page.locator("#chronicle-issue-list")).toContainText("Smoke test fixture issue");
+  await expect(page.locator("#chronicle-issue-list")).not.toContainText("Changed live issue");
+
+  const detailBefore = await page.locator("#chronicle-edition-detail").textContent();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Regenerate Edition" }).click();
+
+  await expect(page.locator("#chronicle-issue-list")).toContainText("Changed live issue");
+  await expect(page.locator("#chronicle-edition-detail")).toContainText("Last regenerated:");
+  const detailAfter = await page.locator("#chronicle-edition-detail").textContent();
+  expect(detailAfter).not.toBe(detailBefore);
+});
+
+test("navigates dated Chronicle editions and blocks future dates", async ({ page }) => {
+  const fixture = await openManor(page);
+  const previousDate = addDays(fixture.today, -1);
+  const futureDate = addDays(fixture.today, 1);
+  const chronicleRequests = [];
+
+  page.on("request", request => {
+    const url = new URL(request.url());
+
+    if (url.pathname === "/api/chronicle") {
+      chronicleRequests.push(url.searchParams.get("date"));
+    }
+  });
+
+  await page.getByRole("button", { name: "Previous Day" }).click();
+  await expect(page.locator("#chronicle-edition-status")).toHaveText("Sealed Edition");
+  await expect(page.locator("#chronicle-headline")).toHaveText("Previous Sealed Edition");
+  await expect(page.locator("#chronicle-orders-heading")).toHaveText("Orders of the Day");
+  await expect(page.locator("#chronicle-record-heading")).toHaveText("Record of the Day");
+  await expect(page.locator("#chronicle-task-list")).toContainText("Archived order");
+  await expect(page.getByRole("button", { name: "Next Day" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "Next Day" }).click();
+  await expect(page.locator("#chronicle-edition-select")).toHaveValue(fixture.today);
+  await expect(page.getByRole("button", { name: "Next Day" })).toBeDisabled();
+
+  await page.locator("#chronicle-date-input").evaluate((input, value) => {
+    input.value = value;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, previousDate);
+  await expect(page.locator("#chronicle-headline")).toHaveText("Previous Sealed Edition");
+
+  await page.locator("#chronicle-date-input").evaluate((input, value) => {
+    input.value = value;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, futureDate);
+  await expect(page.locator("#chronicle-edition-error")).toContainText(
+    "Choose today or an earlier valid date."
+  );
+  expect(chronicleRequests).not.toContain(futureDate);
+});
+
+test("renders an empty Chronicle archive while live previews still work", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
+
+  await openManor(page, {
+    emptyEditions: true,
+    noTodayEdition: true
+  });
+
+  await expect(page.locator("#chronicle-edition-status")).toHaveText(
+    "Unsealed Reconstruction"
+  );
+  await expect(page.locator("#chronicle-archive-empty")).toHaveText(
+    "No editions have been sealed yet."
+  );
+  await expect(page.locator("#chronicle-edition-select")).toBeDisabled();
+  await expect(page.locator("#chronicle-headline")).toHaveText(
+    "1 Order Awaits Attention"
+  );
+});
+
+test("falls back to live Chronicle previews when edition storage is unavailable", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*503/);
+
+  await openManor(page, { editionStorageUnavailable: true });
+
+  await expect(page.locator("#chronicle-edition-status")).toHaveText(
+    "Permanent Storage Unavailable"
+  );
+  await expect(page.locator("#chronicle-headline")).toHaveText(
+    "1 Order Awaits Attention"
+  );
+  await expect(page.getByRole("button", { name: "Seal Edition" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Regenerate Edition" })).toBeDisabled();
+  await expect(page.locator("#chronicle-archive-empty")).toHaveText(
+    "Permanent edition storage is unavailable."
+  );
+});
+
+test("surfaces Chronicle edition API failures and keeps controls recoverable", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*500/);
+
+  const fixture = await openManor(page, {
+    editionStatus: 500,
+    editionError: "Edition fixture failure."
+  });
+
+  await expect(page.locator("#chronicle-headline")).toHaveText(
+    "The Morning Dispatch Could Not Be Opened"
+  );
+  await expect(page.locator("#chronicle-edition-error")).toHaveText(
+    "Edition fixture failure."
+  );
+  await expect(page.getByRole("button", { name: "Previous Day" })).toBeEnabled();
+
+  fixture.state.editionStatus = null;
+  await page.getByRole("button", { name: "Previous Day" }).click();
+  await expect(page.locator("#chronicle-headline")).toHaveText("Previous Sealed Edition");
 });
 
 test("navigates to a department and returns cleanly to the manor", async ({ page }) => {
