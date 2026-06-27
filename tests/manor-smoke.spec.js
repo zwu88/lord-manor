@@ -1,5 +1,8 @@
 const { test, expect } = require("@playwright/test");
-const { installMockApi } = require("./helpers/mock-api");
+const {
+  emptyChronicleResponse,
+  installMockApi
+} = require("./helpers/mock-api");
 const { installErrorMonitor } = require("./helpers/page-errors");
 
 async function openManor(page) {
@@ -164,12 +167,112 @@ test("loads and refreshes the deterministic Manor Chronicle", async ({ page }) =
   await expect(page.locator("#chronicle-headline")).not.toHaveText(
     "Opening the Morning Dispatch..."
   );
+  await expect(page.locator("#chronicle-headline")).toHaveText(
+    "1 Order Awaits Attention"
+  );
+  await expect(page.locator("#chronicle-lead")).toHaveText(
+    "Today's dispatch contains 2 orders (1 pending and 1 completed), 1 recorded affair, and 2 milestones overdue or due within the next seven days."
+  );
   await expect(page.locator("#chronicle-task-list")).toContainText("Read the morning orders");
+  await expect(page.locator("#chronicle-task-list")).toContainText("File the completed order");
   await expect(page.locator("#chronicle-issue-list")).toContainText("Smoke test fixture issue");
+  await expect(page.locator("#chronicle-milestone-list")).toContainText(
+    "Overdue smoke milestone"
+  );
   await expect(page.locator("#chronicle-milestone-list")).toContainText("Smoke tests reviewed");
+  await expect(page.locator("#chronicle-milestone-list")).not.toContainText(
+    "Outside Chronicle window"
+  );
+  await expect(page.locator("#chronicle-milestone-list")).not.toContainText(
+    "Completed Chronicle milestone"
+  );
 
   await page.getByRole("button", { name: "Refresh Dispatch" }).click();
   await expect(page.getByRole("button", { name: "Refresh Dispatch" })).toBeEnabled();
+});
+
+test("uses one unified Chronicle request for a manual refresh", async ({ page }) => {
+  await openManor(page);
+  await expect(page.getByRole("button", { name: "Refresh Dispatch" })).toBeEnabled();
+  await page.waitForTimeout(250);
+
+  const chronicleRequests = [];
+
+  page.on("request", request => {
+    const url = new URL(request.url());
+
+    if (url.pathname === "/api/chronicle") {
+      chronicleRequests.push(url);
+    }
+  });
+
+  await Promise.all([
+    page.waitForResponse(response => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/chronicle" &&
+        response.request().method() === "GET"
+      );
+    }),
+    page.getByRole("button", { name: "Refresh Dispatch" }).click()
+  ]);
+
+  await expect(page.getByRole("button", { name: "Refresh Dispatch" })).toBeEnabled();
+  await page.waitForTimeout(50);
+
+  expect(chronicleRequests).toHaveLength(1);
+  expect(chronicleRequests[0].searchParams.get("date")).toMatch(
+    /^\d{4}-\d{2}-\d{2}$/
+  );
+});
+
+test("shows a readable Chronicle error state", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(
+    /Failed to load resource:.*500/
+  );
+
+  await installMockApi(page, {
+    authenticated: true,
+    chronicleStatus: 500,
+    chronicleError: "Chronicle fixture failure."
+  });
+
+  await page.goto("/");
+  await expect(page.locator("#manor-application")).toBeVisible();
+  await expect(page.locator("#chronicle-headline")).toHaveText(
+    "The Morning Dispatch Could Not Be Opened"
+  );
+  await expect(page.locator("#chronicle-lead")).toHaveText(
+    "Chronicle fixture failure."
+  );
+  await expect(page.getByRole("button", { name: "Refresh Dispatch" })).toBeEnabled();
+});
+
+test("renders quiet Chronicle empty states", async ({ page }) => {
+  const response = emptyChronicleResponse(
+    new Date().toISOString().slice(0, 10)
+  );
+
+  await installMockApi(page, {
+    authenticated: true,
+    chronicleResponse: response
+  });
+
+  await page.goto("/");
+  await expect(page.locator("#manor-application")).toBeVisible();
+  await expect(page.locator("#chronicle-headline")).toHaveText(
+    "A Quiet Morning Across the Manor"
+  );
+  await expect(page.locator("#chronicle-task-list")).toContainText(
+    "No orders were prepared for today."
+  );
+  await expect(page.locator("#chronicle-issue-list")).toContainText(
+    "No affairs have yet been entered today."
+  );
+  await expect(page.locator("#chronicle-milestone-list")).toContainText(
+    "No overdue or near-term milestones require attention."
+  );
 });
 
 test("navigates to a department and returns cleanly to the manor", async ({ page }) => {
