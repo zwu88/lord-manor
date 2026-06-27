@@ -1,4 +1,4 @@
-export const CHRONICLE_FORMAT_VERSION = 1;
+export const CHRONICLE_FORMAT_VERSION = 2;
 
 export function validateChronicleDate(value) {
   if (
@@ -42,8 +42,8 @@ function normalizeInteger(value) {
     : 0;
 }
 
-function normalizeBoolean(value) {
-  return value === true || value === 1;
+export function normalizeBoolean(value) {
+  return value === true || value === 1 || value === "1";
 }
 
 export function normalizeChronicleOrders(
@@ -74,13 +74,6 @@ export function calculateChronicleStatistics(
   milestones,
   date
 ) {
-  const pending =
-    orders.filter(order => !order.completed)
-      .length;
-
-  const completed =
-    orders.length - pending;
-
   const durationMinutes =
     issues.reduce(
       (sum, issue) =>
@@ -120,8 +113,8 @@ export function calculateChronicleStatistics(
   return {
     orders: {
       total: orders.length,
-      pending,
-      completed
+      pending: orders.length,
+      completed: 0
     },
     issues: {
       total: issues.length,
@@ -142,10 +135,10 @@ export function buildChroniclePresentation(
 ) {
   let headline;
 
-  if (statistics.orders.pending > 0) {
+  if (statistics.orders.total > 0) {
     headline =
-      `${statistics.orders.pending} ${
-        statistics.orders.pending === 1
+      `${statistics.orders.total} ${
+        statistics.orders.total === 1
           ? "Order Awaits"
           : "Orders Await"
       } Attention`;
@@ -171,9 +164,7 @@ export function buildChroniclePresentation(
       statistics.orders.total === 1
         ? "order"
         : "orders"
-    } (${statistics.orders.pending} pending and ${
-      statistics.orders.completed
-    } completed), ${statistics.issues.total} ${
+    }, ${statistics.issues.total} ${
       statistics.issues.total === 1
         ? "recorded affair"
         : "recorded affairs"
@@ -217,9 +208,10 @@ export async function buildChroniclePayload(
         FROM next_day_tasks
         LEFT JOIN projects
           ON next_day_tasks.project_id = projects.id
-        WHERE next_day_tasks.task_date = ?
+        WHERE
+          next_day_tasks.task_date = ?
+          AND next_day_tasks.completed = 0
         ORDER BY
-          next_day_tasks.completed ASC,
           next_day_tasks.created_at ASC,
           next_day_tasks.id ASC
       `)
@@ -314,7 +306,8 @@ export async function buildChroniclePayload(
     orders,
     issues,
     milestones,
-    statistics
+    statistics,
+    formatVersion: CHRONICLE_FORMAT_VERSION
   };
 }
 

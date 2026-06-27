@@ -20,7 +20,7 @@ async function openManor(page, options = {}) {
   await page.goto("/");
   await expect(page.locator("#manor-application")).toBeVisible();
   await expect(page.locator("#recent-issue-list .issue-card")).toHaveCount(2);
-  await expect(page.locator("#tomorrow-task-list .office-card")).toHaveCount(1);
+  await expect(page.locator("#tomorrow-task-list .office-card")).toHaveCount(2);
 
   return fixture;
 }
@@ -62,6 +62,135 @@ test("renders the authenticated homepage and Chronicle", async ({ page }) => {
     "Opening the Morning Dispatch..."
   );
   await expect(page.locator("#chronicle-edition-status")).toHaveText("Sealed Edition");
+});
+
+test("shows only active tomorrow Orders in the planning list", async ({ page }) => {
+  await openManor(page);
+
+  const taskList = page.locator("#tomorrow-task-list");
+
+  await expect(taskList).toContainText("Prepare browser smoke review");
+  await expect(taskList).toContainText("Draft the council docket");
+  await expect(taskList).not.toContainText("Completed early tomorrow order");
+  await expect(taskList).not.toContainText("Pending");
+  await expect(taskList).not.toContainText("Completed");
+  await expect(taskList.getByRole("button", { name: "Reopen" })).toHaveCount(0);
+  await expect(taskList.getByRole("button", { name: "Done Today" })).toHaveCount(2);
+});
+
+test("marks a tomorrow Order done today without a page reload", async ({ page }) => {
+  const fixture = await openManor(page);
+  const mainFrame = page.mainFrame();
+  let navigations = 0;
+  const taskRequests = [];
+
+  page.on("framenavigated", frame => {
+    if (frame === mainFrame) {
+      navigations += 1;
+    }
+  });
+
+  page.on("request", request => {
+    const url = new URL(request.url());
+
+    if (url.pathname === "/api/tasks" && request.method() === "PUT") {
+      taskRequests.push(JSON.parse(request.postData() || "{}"));
+    }
+  });
+
+  const card = page
+    .locator("#tomorrow-task-list .office-card")
+    .filter({ hasText: "Prepare browser smoke review" });
+
+  page.once("dialog", async dialog => {
+    expect(dialog.message()).toContain("will be removed from tomorrow’s plan");
+    expect(dialog.message()).toContain("will not appear in tomorrow’s Chronicle");
+    await dialog.accept();
+  });
+
+  await Promise.all([
+    page.waitForResponse(response => {
+      const request = response.request();
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/tasks" &&
+        request.method() === "PUT" &&
+        response.status() === 200
+      );
+    }),
+    card.getByRole("button", { name: "Done Today" }).click()
+  ]);
+
+  await expect(page.locator("#tomorrow-task-list")).not.toContainText(
+    "Prepare browser smoke review"
+  );
+  await expect(page.locator("#tomorrow-task-list .office-card")).toHaveCount(1);
+  expect(taskRequests).toHaveLength(1);
+  expect(taskRequests[0]).toMatchObject({
+    id: "task-tomorrow-1",
+    completed: true
+  });
+  expect(taskRequests[0]).not.toHaveProperty("completedAt");
+
+  const updated = fixture.data.tasks.find(task => task.id === "task-tomorrow-1");
+  expect(updated.completed).toBe(true);
+  expect(updated.completedAt).toMatch(/T/);
+  expect(navigations).toBe(0);
+});
+
+test("keeps a tomorrow Order visible when completing early fails", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*500/);
+
+  await openManor(page, {
+    taskPutStatus: 500,
+    taskPutError: "Fixture task update failure."
+  });
+
+  const card = page
+    .locator("#tomorrow-task-list .office-card")
+    .filter({ hasText: "Prepare browser smoke review" });
+  const button = card.getByRole("button", { name: "Done Today" });
+  const dialogMessages = [];
+
+  page.on("dialog", async dialog => {
+    dialogMessages.push(dialog.message());
+    await dialog.accept();
+  });
+
+  await button.click();
+  await expect(card).toBeVisible();
+  await expect(button).toBeEnabled();
+  expect(dialogMessages.some(message => message.includes("Fixture task update failure."))).toBe(
+    true
+  );
+});
+
+test("shows the active tomorrow empty state after the final Order is done", async ({ page }) => {
+  await openManor(page);
+
+  while (await page.locator("#tomorrow-task-list .office-card").count()) {
+    const card = page.locator("#tomorrow-task-list .office-card").first();
+    page.once("dialog", dialog => dialog.accept());
+    await Promise.all([
+      page.waitForResponse(response => {
+        const request = response.request();
+        const url = new URL(response.url());
+
+        return (
+          url.pathname === "/api/tasks" &&
+          request.method() === "PUT" &&
+          response.status() === 200
+        );
+      }),
+      card.getByRole("button", { name: "Done Today" }).click()
+    ]);
+  }
+
+  await expect(page.locator("#empty-tasks")).toBeVisible();
+  await expect(page.locator("#empty-tasks")).toHaveText(
+    "No Orders remain for tomorrow."
+  );
 });
 
 test("opens, closes, creates, and edits issues", async ({ page }) => {
@@ -186,10 +315,14 @@ test("loads and refreshes the deterministic Manor Chronicle", async ({ page }) =
     "1 Order Awaits Attention"
   );
   await expect(page.locator("#chronicle-lead")).toHaveText(
-    "Today's dispatch contains 2 orders (1 pending and 1 completed), 1 recorded affair, and 2 milestones overdue or due within the next seven days."
+    "Today's dispatch contains 1 order, 1 recorded affair, and 2 milestones overdue or due within the next seven days."
   );
   await expect(page.locator("#chronicle-task-list")).toContainText("Read the morning orders");
-  await expect(page.locator("#chronicle-task-list")).toContainText("File the completed order");
+  await expect(page.locator("#chronicle-task-list")).not.toContainText("File the completed order");
+  await expect(page.locator("#chronicle-task-list")).not.toContainText("Pending");
+  await expect(page.locator("#chronicle-task-list")).not.toContainText("Completed");
+  await expect(page.locator("#chronicle-lead")).not.toContainText("pending");
+  await expect(page.locator("#chronicle-lead")).not.toContainText("completed");
   await expect(page.locator("#chronicle-issue-list")).toContainText("Smoke test fixture issue");
   await expect(page.locator("#chronicle-milestone-list")).toContainText(
     "Overdue smoke milestone"
@@ -295,7 +428,7 @@ test("renders quiet Chronicle empty states", async ({ page }) => {
     "A Quiet Morning Across the Manor"
   );
   await expect(page.locator("#chronicle-task-list")).toContainText(
-    "No orders were prepared for today."
+    "No Orders remain for today."
   );
   await expect(page.locator("#chronicle-issue-list")).toContainText(
     "No affairs have yet been entered today."
@@ -374,6 +507,10 @@ test("seals a live Chronicle preview without a page reload", async ({ page }) =>
     "1 Order Awaits Attention"
   );
   await expect(page.locator("#chronicle-edition-select")).toHaveValue(fixture.today);
+  expect(fixture.state.editions.get(fixture.today).orders).toHaveLength(1);
+  expect(
+    fixture.state.editions.get(fixture.today).orders.map(order => order.title)
+  ).not.toContain("File the completed order");
   expect(postedBodies).toEqual([{ date: fixture.today }]);
   expect(navigations).toBe(0);
 });
@@ -436,6 +573,68 @@ test("keeps sealed editions immutable until regeneration", async ({ page }) => {
   expect(detailAfter).not.toBe(detailBefore);
 });
 
+test("regenerates a version-2 edition with active-only Orders and preserved sealing time", async ({ page }) => {
+  const fixture = await openManor(page);
+  const editionBefore = fixture.state.editions.get(fixture.today);
+  const sealedAtBefore = editionBefore.sealedAt;
+  const updatedAtBefore = editionBefore.updatedAt;
+
+  fixture.data.tasks = fixture.data.tasks.map(task =>
+    task.id === "task-today-1"
+      ? {
+          ...task,
+          completed: true,
+          completedAt: `${fixture.today}T11:00:00.000Z`,
+          updatedAt: `${fixture.today}T11:00:00.000Z`
+        }
+      : task
+  );
+
+  await page.getByRole("button", { name: "Previous Day" }).click();
+  await page.getByRole("button", { name: "Next Day" }).click();
+  await expect(page.locator("#chronicle-task-list")).toContainText(
+    "Read the morning orders"
+  );
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Regenerate Edition" }).click();
+
+  const editionAfter = fixture.state.editions.get(fixture.today);
+  expect(editionAfter.formatVersion).toBe(2);
+  expect(editionAfter.sealedAt).toBe(sealedAtBefore);
+  expect(editionAfter.updatedAt).not.toBe(updatedAtBefore);
+  expect(editionAfter.orders).toHaveLength(0);
+  await expect(page.locator("#chronicle-task-list")).not.toContainText(
+    "Read the morning orders"
+  );
+  await expect(page.locator("#chronicle-task-list")).toContainText(
+    "No Orders remain for today."
+  );
+});
+
+test("keeps legacy version-1 edition statuses readable and upgrades on regeneration", async ({ page }) => {
+  const fixture = await openManor(page);
+
+  await page.getByRole("button", { name: "Previous Day" }).click();
+  await expect(page.locator("#chronicle-headline")).toHaveText("Previous Sealed Edition");
+  await expect(page.locator("#chronicle-task-list")).toContainText("Archived pending order");
+  await expect(page.locator("#chronicle-task-list")).toContainText("Archived completed order");
+  await expect(page.locator("#chronicle-task-list")).toContainText("Pending");
+  await expect(page.locator("#chronicle-task-list")).toContainText("Completed");
+
+  const previousDate = addDays(fixture.today, -1);
+  const sealedAtBefore = fixture.state.editions.get(previousDate).sealedAt;
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Regenerate Edition" }).click();
+
+  const regenerated = fixture.state.editions.get(previousDate);
+  expect(regenerated.formatVersion).toBe(2);
+  expect(regenerated.sealedAt).toBe(sealedAtBefore);
+  await expect(page.locator("#chronicle-task-list")).not.toContainText("Pending");
+  await expect(page.locator("#chronicle-task-list")).not.toContainText("Completed");
+});
+
 test("navigates dated Chronicle editions and blocks future dates", async ({ page }) => {
   const fixture = await openManor(page);
   const previousDate = addDays(fixture.today, -1);
@@ -455,7 +654,7 @@ test("navigates dated Chronicle editions and blocks future dates", async ({ page
   await expect(page.locator("#chronicle-headline")).toHaveText("Previous Sealed Edition");
   await expect(page.locator("#chronicle-orders-heading")).toHaveText("Orders of the Day");
   await expect(page.locator("#chronicle-record-heading")).toHaveText("Record of the Day");
-  await expect(page.locator("#chronicle-task-list")).toContainText("Archived order");
+  await expect(page.locator("#chronicle-task-list")).toContainText("Archived pending order");
   await expect(page.getByRole("button", { name: "Next Day" })).toBeEnabled();
 
   await page.getByRole("button", { name: "Next Day" }).click();

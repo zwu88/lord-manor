@@ -424,11 +424,11 @@
   function fallbackPresentation(
     statistics
   ) {
-    if (statistics.orders.pending > 0) {
+    if (statistics.orders.total > 0) {
       return {
         headline:
-          `${statistics.orders.pending} ${
-            statistics.orders.pending === 1
+          `${statistics.orders.total} ${
+            statistics.orders.total === 1
               ? "Order Awaits"
               : "Orders Await"
           } Attention`
@@ -480,9 +480,7 @@
           statistics.orders.total === 1
             ? "order"
             : "orders"
-        } (${statistics.orders.pending} pending and ${
-          statistics.orders.completed
-        } completed), ${statistics.issues.total} ${
+        }, ${statistics.issues.total} ${
           statistics.issues.total === 1
             ? "recorded affair"
             : "recorded affairs"
@@ -530,12 +528,17 @@
       "chronicle-entry"
     );
 
+    if (meta) {
+      entry.append(
+        createElement(
+          "p",
+          "chronicle-entry-meta",
+          meta
+        )
+      );
+    }
+
     entry.append(
-      createElement(
-        "p",
-        "chronicle-entry-meta",
-        meta
-      ),
       createElement(
         "h5",
         "chronicle-entry-title",
@@ -556,7 +559,11 @@
     list.append(entry);
   }
 
-  function renderTasks(tasks, date) {
+  function renderTasks(
+    tasks,
+    date,
+    formatVersion
+  ) {
     taskList.replaceChildren();
 
     if (tasks.length === 0) {
@@ -565,8 +572,8 @@
           "p",
           "chronicle-empty",
           date === todayDate
-            ? "No orders were prepared for today."
-            : "No orders were prepared for this date."
+            ? "No Orders remain for today."
+            : "No Orders remained for this date."
         )
       );
 
@@ -574,11 +581,15 @@
     }
 
     for (const task of tasks) {
-      const metaParts = [
-        task.completed
-          ? "Completed"
-          : "Pending"
-      ];
+      const metaParts = [];
+
+      if (formatVersion < 2) {
+        metaParts.push(
+          task.completed
+            ? "Completed"
+            : "Pending"
+        );
+      }
 
       if (task.projectName) {
         metaParts.push(
@@ -880,7 +891,8 @@
 
     renderTasks(
       normalized.orders,
-      normalized.date
+      normalized.date,
+      normalized.formatVersion
     );
 
     renderIssues(
