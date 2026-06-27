@@ -1887,13 +1887,13 @@ logoutButton.addEventListener(
       }
     );
 
+    showLoginScreen();
+
     issues = [];
     projects = [];
 
     renderIssues();
     renderProjects();
-
-    showLoginScreen();
   }
 );
 

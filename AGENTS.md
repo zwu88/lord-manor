@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Lord Manor is a private personal-management website deployed through
+Lord Manor is a private personal-management application deployed through
 Cloudflare Pages.
 
 The application uses:
@@ -13,17 +13,25 @@ The application uses:
 - GitHub Actions for syntax checking
 - No frontend framework or build system
 
+Do not introduce React, Vue, Angular, Svelte, a bundler, or another
+frontend framework without explicit approval. Do not introduce a
+production dependency unless it is necessary and explicitly justified.
+Development-only test dependencies are permitted.
+
 ## Repository rules
 
 - Inspect the current repository before modifying code.
 - Work on a separate branch and create a pull request.
 - Never commit directly to `main`.
+- Do not merge pull requests automatically.
 - Implement one clearly scoped feature per pull request.
 - Preserve existing behavior unless the task explicitly changes it.
 - Do not introduce a framework, bundler, or production dependency
   without explicit approval.
-- Do not modify or expose Cloudflare secrets.
-- Never place credentials or API keys in repository files.
+- Do not expose passwords, session secrets, API keys, or Cloudflare
+  secrets.
+- Never place credentials in repository files.
+- Do not weaken production authentication to make testing easier.
 - Keep all dialogs outside page elements that may be hidden.
 - Continue using ordinary browser scripts rather than ES modules
   unless an explicit migration is approved.
@@ -58,3 +66,20 @@ node --check estate-office.js
 node --check departments.js
 node --check treasury.js
 node --check chronicle.js
+```
+
+Also syntax-check all JavaScript files under `functions/` as ES
+modules using the repository's existing workflow method.
+
+Run relevant browser tests for user-facing flows. Report exactly which
+commands were run, and do not claim that a test passed unless it was
+actually executed.
+
+Pull-request descriptions must state:
+
+- What changed
+- Which files changed
+- Tests run
+- Test results
+- Any limitations
+- Whether a database migration is required
