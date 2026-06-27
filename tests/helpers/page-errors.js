@@ -25,6 +25,10 @@ function installErrorMonitor(page) {
   });
 
   return {
+    allowConsoleError(pattern) {
+      allowedConsoleMessages.push(pattern);
+    },
+
     assertNoErrors() {
       if (errors.length > 0) {
         throw new Error(`Unexpected browser errors:\n${errors.join("\n")}`);

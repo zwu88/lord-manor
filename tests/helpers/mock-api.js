@@ -71,6 +71,18 @@ function createInitialData() {
         updatedAt: `${TODAY}T06:00:00.000Z`
       },
       {
+        id: "task-today-2",
+        taskDate: TODAY,
+        title: "File the completed order",
+        description: "A completed order for Chronicle statistics.",
+        projectId: project.id,
+        projectName: project.name,
+        completed: true,
+        completedAt: `${TODAY}T07:15:00.000Z`,
+        createdAt: `${TODAY}T07:00:00.000Z`,
+        updatedAt: `${TODAY}T07:15:00.000Z`
+      },
+      {
         id: "task-tomorrow-1",
         taskDate: addDays(TODAY, 1),
         title: "Prepare browser smoke review",
@@ -85,6 +97,19 @@ function createInitialData() {
     ],
     milestones: [
       {
+        id: "milestone-overdue-1",
+        projectId: project.id,
+        projectName: project.name,
+        projectStatus: project.status,
+        title: "Overdue smoke milestone",
+        targetDate: addDays(TODAY, -1),
+        notes: "Overdue and incomplete for Council Watch coverage.",
+        completed: false,
+        completedAt: null,
+        createdAt: `${TODAY}T06:40:00.000Z`,
+        updatedAt: `${TODAY}T06:40:00.000Z`
+      },
+      {
         id: "milestone-week-1",
         projectId: project.id,
         projectName: project.name,
@@ -96,6 +121,32 @@ function createInitialData() {
         completedAt: null,
         createdAt: `${TODAY}T06:45:00.000Z`,
         updatedAt: `${TODAY}T06:45:00.000Z`
+      },
+      {
+        id: "milestone-outside-window-1",
+        projectId: project.id,
+        projectName: project.name,
+        projectStatus: project.status,
+        title: "Outside Chronicle window",
+        targetDate: addDays(TODAY, 10),
+        notes: "This milestone is outside the seven-day Chronicle window.",
+        completed: false,
+        completedAt: null,
+        createdAt: `${TODAY}T06:50:00.000Z`,
+        updatedAt: `${TODAY}T06:50:00.000Z`
+      },
+      {
+        id: "milestone-completed-1",
+        projectId: project.id,
+        projectName: project.name,
+        projectStatus: project.status,
+        title: "Completed Chronicle milestone",
+        targetDate: addDays(TODAY, 2),
+        notes: "This completed milestone is excluded from Council Watch.",
+        completed: true,
+        completedAt: `${TODAY}T08:30:00.000Z`,
+        createdAt: `${TODAY}T06:55:00.000Z`,
+        updatedAt: `${TODAY}T08:30:00.000Z`
       }
     ]
   };
@@ -153,6 +204,188 @@ function createRecordId(prefix, data) {
 
 function sameOrigin(request) {
   return request.headers().origin === "http://127.0.0.1:4173";
+}
+
+function isValidDateString(value) {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value)
+  ) {
+    return false;
+  }
+
+  const date = new Date(
+    `${value}T00:00:00.000Z`
+  );
+
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) ===
+      value
+  );
+}
+
+function emptyChronicleResponse(date) {
+  return {
+    date,
+    horizonDate: addDays(date, 7),
+    orders: [],
+    issues: [],
+    milestones: [],
+    statistics: {
+      orders: {
+        total: 0,
+        pending: 0,
+        completed: 0
+      },
+      issues: {
+        total: 0,
+        durationMinutes: 0,
+        moneyCostCents: 0
+      },
+      milestones: {
+        total: 0,
+        overdue: 0,
+        dueToday: 0,
+        dueSoon: 0
+      }
+    }
+  };
+}
+
+function buildChronicleResponse(data, date) {
+  const horizonDate = addDays(date, 7);
+
+  const orders = clone(
+    data.tasks
+      .filter(task => task.taskDate === date)
+      .sort((first, second) => {
+        const completionDifference =
+          Number(first.completed) -
+          Number(second.completed);
+
+        if (completionDifference !== 0) {
+          return completionDifference;
+        }
+
+        const createdDifference =
+          String(first.createdAt || "")
+            .localeCompare(
+              String(second.createdAt || "")
+            );
+
+        if (createdDifference !== 0) {
+          return createdDifference;
+        }
+
+        return first.id.localeCompare(second.id);
+      })
+  );
+
+  const issues = clone(
+    data.issues
+      .filter(issue => issue.date === date)
+      .sort((first, second) => {
+        const createdDifference =
+          String(second.createdAt || "")
+            .localeCompare(
+              String(first.createdAt || "")
+            );
+
+        if (createdDifference !== 0) {
+          return createdDifference;
+        }
+
+        return first.id.localeCompare(second.id);
+      })
+      .slice(0, 5)
+  );
+
+  const milestones = clone(
+    data.milestones
+      .filter(
+        milestone =>
+          !milestone.completed &&
+          milestone.targetDate <= horizonDate
+      )
+      .sort((first, second) => {
+        const targetDifference =
+          first.targetDate.localeCompare(
+            second.targetDate
+          );
+
+        if (targetDifference !== 0) {
+          return targetDifference;
+        }
+
+        const createdDifference =
+          String(first.createdAt || "")
+            .localeCompare(
+              String(second.createdAt || "")
+            );
+
+        if (createdDifference !== 0) {
+          return createdDifference;
+        }
+
+        return first.id.localeCompare(second.id);
+      })
+      .slice(0, 5)
+  );
+
+  const pending =
+    orders.filter(order => !order.completed)
+      .length;
+
+  return {
+    date,
+    horizonDate,
+    orders,
+    issues,
+    milestones,
+    statistics: {
+      orders: {
+        total: orders.length,
+        pending,
+        completed: orders.length - pending
+      },
+      issues: {
+        total: issues.length,
+        durationMinutes:
+          issues.reduce(
+            (sum, issue) =>
+              sum +
+              (Number(issue.duration) || 0),
+            0
+          ),
+        moneyCostCents:
+          issues.reduce(
+            (sum, issue) =>
+              sum +
+              (Number(issue.moneyCostCents) || 0),
+            0
+          )
+      },
+      milestones: {
+        total: milestones.length,
+        overdue:
+          milestones.filter(
+            milestone =>
+              milestone.targetDate < date
+          ).length,
+        dueToday:
+          milestones.filter(
+            milestone =>
+              milestone.targetDate === date
+          ).length,
+        dueSoon:
+          milestones.filter(
+            milestone =>
+              milestone.targetDate > date
+          ).length
+      }
+    }
+  };
 }
 
 async function handleCollection(route, request, data, key, singular) {
@@ -248,6 +481,39 @@ async function handleApi(route, data, state) {
     return json(route, { error: "Authentication required." }, 401);
   }
 
+  if (path === "/api/chronicle") {
+    if (state.chronicleStatus) {
+      return json(
+        route,
+        {
+          error:
+            state.chronicleError ||
+            "Could not open the Manor Chronicle."
+        },
+        state.chronicleStatus
+      );
+    }
+
+    const date = url.searchParams.get("date");
+
+    if (!isValidDateString(date)) {
+      return json(
+        route,
+        {
+          error:
+            "A valid Chronicle date in YYYY-MM-DD format is required."
+        },
+        400
+      );
+    }
+
+    const response =
+      state.chronicleResponse ||
+      buildChronicleResponse(data, date);
+
+    return json(route, clone(response));
+  }
+
   if (path === "/api/issues") {
     return handleCollection(route, request, data, "issues", "issue");
   }
@@ -270,7 +536,13 @@ async function handleApi(route, data, state) {
 async function installMockApi(page, options = {}) {
   const data = createInitialData();
   const state = {
-    authenticated: options.authenticated === true
+    authenticated: options.authenticated === true,
+    chronicleStatus:
+      options.chronicleStatus || null,
+    chronicleError:
+      options.chronicleError || null,
+    chronicleResponse:
+      options.chronicleResponse || null
   };
 
   await page.route("**/api/**", route => handleApi(route, data, state));
@@ -284,5 +556,6 @@ async function installMockApi(page, options = {}) {
 }
 
 module.exports = {
+  emptyChronicleResponse,
   installMockApi
 };

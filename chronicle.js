@@ -95,25 +95,6 @@
       .slice(0, 10);
   }
 
-  function addDays(dateString, days) {
-    const date = new Date(
-      `${dateString}T12:00:00`
-    );
-
-    date.setDate(
-      date.getDate() + days
-    );
-
-    const timezoneOffset =
-      date.getTimezoneOffset() * 60_000;
-
-    return new Date(
-      date.getTime() - timezoneOffset
-    )
-      .toISOString()
-      .slice(0, 10);
-  }
-
   function formatDate(
     dateString,
     options = null
@@ -158,6 +139,106 @@
     }
 
     return payload;
+  }
+
+  function defaultStatistics() {
+    return {
+      orders: {
+        total: 0,
+        pending: 0,
+        completed: 0
+      },
+      issues: {
+        total: 0,
+        durationMinutes: 0,
+        moneyCostCents: 0
+      },
+      milestones: {
+        total: 0,
+        overdue: 0,
+        dueToday: 0,
+        dueSoon: 0
+      }
+    };
+  }
+
+  function normalizeCount(value) {
+    const number = Number(value);
+
+    return Number.isFinite(number)
+      ? Math.max(
+          0,
+          Math.trunc(number)
+        )
+      : 0;
+  }
+
+  function normalizeStatistics(
+    statistics
+  ) {
+    const defaults =
+      defaultStatistics();
+
+    return {
+      orders: {
+        total:
+          normalizeCount(
+            statistics?.orders?.total ??
+            defaults.orders.total
+          ),
+        pending:
+          normalizeCount(
+            statistics?.orders?.pending ??
+            defaults.orders.pending
+          ),
+        completed:
+          normalizeCount(
+            statistics?.orders?.completed ??
+            defaults.orders.completed
+          )
+      },
+      issues: {
+        total:
+          normalizeCount(
+            statistics?.issues?.total ??
+            defaults.issues.total
+          ),
+        durationMinutes:
+          normalizeCount(
+            statistics?.issues
+              ?.durationMinutes ??
+            defaults.issues.durationMinutes
+          ),
+        moneyCostCents:
+          normalizeCount(
+            statistics?.issues
+              ?.moneyCostCents ??
+            defaults.issues.moneyCostCents
+          )
+      },
+      milestones: {
+        total:
+          normalizeCount(
+            statistics?.milestones?.total ??
+            defaults.milestones.total
+          ),
+        overdue:
+          normalizeCount(
+            statistics?.milestones?.overdue ??
+            defaults.milestones.overdue
+          ),
+        dueToday:
+          normalizeCount(
+            statistics?.milestones?.dueToday ??
+            defaults.milestones.dueToday
+          ),
+        dueSoon:
+          normalizeCount(
+            statistics?.milestones?.dueSoon ??
+            defaults.milestones.dueSoon
+          )
+      }
+    };
   }
 
   function createElement(
@@ -231,28 +312,7 @@
       return;
     }
 
-    const orderedTasks =
-      [...tasks].sort(
-        (first, second) => {
-          const completionDifference =
-            Number(first.completed) -
-            Number(second.completed);
-
-          if (completionDifference !== 0) {
-            return completionDifference;
-          }
-
-          return String(
-            first.createdAt ?? ""
-          ).localeCompare(
-            String(
-              second.createdAt ?? ""
-            )
-          );
-        }
-      );
-
-    for (const task of orderedTasks) {
+    for (const task of tasks) {
       const metaParts = [
         task.completed
           ? "Completed"
@@ -289,20 +349,7 @@
       return;
     }
 
-    const orderedIssues =
-      [...issues]
-        .sort((first, second) =>
-          String(
-            second.createdAt ?? ""
-          ).localeCompare(
-            String(
-              first.createdAt ?? ""
-            )
-          )
-        )
-        .slice(0, 5);
-
-    for (const issue of orderedIssues) {
+    for (const issue of issues) {
       const department =
         departments[issue.region];
 
@@ -377,31 +424,24 @@
     }
   }
 
-  function setHeadline(
-    tasks,
-    issues,
-    milestones
-  ) {
-    const pendingTasks =
-      tasks.filter(
-        task => !task.completed
-      );
-
-    if (pendingTasks.length > 0) {
+  function setHeadline(statistics) {
+    if (statistics.orders.pending > 0) {
       headlineElement.textContent =
-        `${pendingTasks.length} ${
-          pendingTasks.length === 1
+        `${statistics.orders.pending} ${
+          statistics.orders.pending === 1
             ? "Order Awaits"
             : "Orders Await"
         } Attention`;
-    } else if (issues.length > 0) {
+    } else if (statistics.issues.total > 0) {
       headlineElement.textContent =
-        `${issues.length} ${
-          issues.length === 1
+        `${statistics.issues.total} ${
+          statistics.issues.total === 1
             ? "Affair Enters"
             : "Affairs Enter"
         } Today's Record`;
-    } else if (milestones.length > 0) {
+    } else if (
+      statistics.milestones.total > 0
+    ) {
       headlineElement.textContent =
         "Council Deadlines Approach";
     } else {
@@ -409,25 +449,21 @@
         "A Quiet Morning Across the Manor";
     }
 
-    const completedTasks =
-      tasks.length -
-      pendingTasks.length;
-
     leadElement.textContent =
       `Today's dispatch contains ${
-        tasks.length
+        statistics.orders.total
       } ${
-        tasks.length === 1
+        statistics.orders.total === 1
           ? "order"
           : "orders"
-      } (${pendingTasks.length} pending and ${
-        completedTasks
-      } completed), ${issues.length} ${
-        issues.length === 1
+      } (${statistics.orders.pending} pending and ${
+        statistics.orders.completed
+      } completed), ${statistics.issues.total} ${
+        statistics.issues.total === 1
           ? "recorded affair"
           : "recorded affairs"
-      }, and ${milestones.length} ${
-        milestones.length === 1
+      }, and ${statistics.milestones.total} ${
+        statistics.milestones.total === 1
           ? "milestone"
           : "milestones"
       } overdue or due within the next seven days.`;
@@ -456,9 +492,6 @@
     const today =
       getLocalDateString();
 
-    const horizon =
-      addDays(today, 7);
-
     currentDateElement.textContent =
       formatDate(
         today,
@@ -471,60 +504,35 @@
       );
 
     try {
-      const [
-        taskPayload,
-        issuePayload,
-        milestonePayload
-      ] = await Promise.all([
-        chronicleFetch(
-          `/api/tasks?date=${
+      const payload =
+        await chronicleFetch(
+          `/api/chronicle?date=${
             encodeURIComponent(today)
           }`
-        ),
-
-        chronicleFetch(
-          "/api/issues"
-        ),
-
-        chronicleFetch(
-          "/api/milestones"
-        )
-      ]);
+        );
 
       const tasks =
-        taskPayload.tasks ?? [];
+        Array.isArray(payload?.orders)
+          ? payload.orders
+          : [];
 
       const todayIssues =
-        (issuePayload.issues ?? [])
-          .filter(
-            issue =>
-              issue.date === today
-          );
+        Array.isArray(payload?.issues)
+          ? payload.issues
+          : [];
 
       const watchedMilestones =
-        (
-          milestonePayload.milestones ??
-          []
-        )
-          .filter(
-            milestone =>
-              !milestone.completed &&
-              milestone.targetDate <=
-                horizon
-          )
-          .sort(
-            (first, second) =>
-              first.targetDate
-                .localeCompare(
-                  second.targetDate
-                )
-          )
-          .slice(0, 5);
+        Array.isArray(payload?.milestones)
+          ? payload.milestones
+          : [];
+
+      const statistics =
+        normalizeStatistics(
+          payload?.statistics
+        );
 
       setHeadline(
-        tasks,
-        todayIssues,
-        watchedMilestones
+        statistics
       );
 
       renderTasks(tasks);
