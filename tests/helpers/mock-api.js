@@ -229,6 +229,11 @@ function emptyChronicleResponse(date) {
   return {
     date,
     horizonDate: addDays(date, 7),
+    presentation: {
+      headline: "A Quiet Morning Across the Manor",
+      lead:
+        "Today's dispatch contains 0 orders (0 pending and 0 completed), 0 recorded affairs, and 0 milestones overdue or due within the next seven days."
+    },
     orders: [],
     issues: [],
     milestones: [],
@@ -337,55 +342,392 @@ function buildChronicleResponse(data, date) {
     orders.filter(order => !order.completed)
       .length;
 
+  const statistics = {
+    orders: {
+      total: orders.length,
+      pending,
+      completed: orders.length - pending
+    },
+    issues: {
+      total: issues.length,
+      durationMinutes:
+        issues.reduce(
+          (sum, issue) =>
+            sum +
+            (Number(issue.duration) || 0),
+          0
+        ),
+      moneyCostCents:
+        issues.reduce(
+          (sum, issue) =>
+            sum +
+            (Number(issue.moneyCostCents) || 0),
+          0
+        )
+    },
+    milestones: {
+      total: milestones.length,
+      overdue:
+        milestones.filter(
+          milestone =>
+            milestone.targetDate < date
+        ).length,
+      dueToday:
+        milestones.filter(
+          milestone =>
+            milestone.targetDate === date
+        ).length,
+      dueSoon:
+        milestones.filter(
+          milestone =>
+            milestone.targetDate > date
+        ).length
+    }
+  };
+
+  const presentation =
+    buildPresentation(statistics);
+
   return {
     date,
     horizonDate,
+    presentation,
     orders,
     issues,
     milestones,
-    statistics: {
-      orders: {
-        total: orders.length,
-        pending,
-        completed: orders.length - pending
-      },
-      issues: {
-        total: issues.length,
-        durationMinutes:
-          issues.reduce(
-            (sum, issue) =>
-              sum +
-              (Number(issue.duration) || 0),
-            0
-          ),
-        moneyCostCents:
-          issues.reduce(
-            (sum, issue) =>
-              sum +
-              (Number(issue.moneyCostCents) || 0),
-            0
-          )
-      },
-      milestones: {
-        total: milestones.length,
-        overdue:
-          milestones.filter(
-            milestone =>
-              milestone.targetDate < date
-          ).length,
-        dueToday:
-          milestones.filter(
-            milestone =>
-              milestone.targetDate === date
-          ).length,
-        dueSoon:
-          milestones.filter(
-            milestone =>
-              milestone.targetDate > date
-          ).length
-      }
-    }
+    statistics
   };
+}
+
+function buildPresentation(statistics) {
+  let headline;
+
+  if (statistics.orders.pending > 0) {
+    headline =
+      `${statistics.orders.pending} ${
+        statistics.orders.pending === 1
+          ? "Order Awaits"
+          : "Orders Await"
+      } Attention`;
+  } else if (statistics.issues.total > 0) {
+    headline =
+      `${statistics.issues.total} ${
+        statistics.issues.total === 1
+          ? "Affair Enters"
+          : "Affairs Enter"
+      } Today's Record`;
+  } else if (statistics.milestones.total > 0) {
+    headline =
+      "Council Deadlines Approach";
+  } else {
+    headline =
+      "A Quiet Morning Across the Manor";
+  }
+
+  return {
+    headline,
+    lead:
+      `Today's dispatch contains ${
+        statistics.orders.total
+      } ${
+        statistics.orders.total === 1
+          ? "order"
+          : "orders"
+      } (${statistics.orders.pending} pending and ${
+        statistics.orders.completed
+      } completed), ${statistics.issues.total} ${
+        statistics.issues.total === 1
+          ? "recorded affair"
+          : "recorded affairs"
+      }, and ${statistics.milestones.total} ${
+        statistics.milestones.total === 1
+          ? "milestone"
+          : "milestones"
+      } overdue or due within the next seven days.`
+  };
+}
+
+function createEditionFromChronicle(
+  chronicle,
+  sealedAt
+) {
+  return {
+    ...clone(chronicle),
+    formatVersion: 1,
+    sealedAt,
+    updatedAt: sealedAt
+  };
+}
+
+function editionMetadata(edition) {
+  return {
+    date: edition.date,
+    horizonDate: edition.horizonDate,
+    headline: edition.presentation.headline,
+    formatVersion: edition.formatVersion,
+    sealedAt: edition.sealedAt,
+    updatedAt: edition.updatedAt
+  };
+}
+
+function createInitialEditions(data, options) {
+  const editions = new Map();
+
+  if (options.emptyEditions) {
+    return editions;
+  }
+
+  const todayEdition =
+    createEditionFromChronicle(
+      buildChronicleResponse(data, TODAY),
+      `${TODAY}T10:00:00.000Z`
+    );
+
+  todayEdition.presentation.headline =
+    "Sealed Fixture Edition";
+  todayEdition.presentation.lead =
+    "This sealed fixture edition is stored as a permanent snapshot.";
+
+  const previousDate = addDays(TODAY, -1);
+  const previousEdition =
+    createEditionFromChronicle(
+      {
+        ...emptyChronicleResponse(previousDate),
+        presentation: {
+          headline:
+            "Previous Sealed Edition",
+          lead:
+            "This previous edition proves historical archive loading."
+        },
+        orders: [
+          {
+            id: "archived-order-1",
+            taskDate: previousDate,
+            title: "Archived order",
+            description:
+              "Stored previous-day order.",
+            projectId: null,
+            projectName: null,
+            completed: false,
+            completedAt: null,
+            createdAt:
+              `${previousDate}T06:00:00.000Z`,
+            updatedAt:
+              `${previousDate}T06:00:00.000Z`
+          }
+        ]
+      },
+      `${previousDate}T10:00:00.000Z`
+    );
+
+  if (!options.noTodayEdition) {
+    editions.set(TODAY, todayEdition);
+  }
+
+  editions.set(previousDate, previousEdition);
+
+  return editions;
+}
+
+async function handleChronicleEditions(
+  route,
+  request,
+  data,
+  state
+) {
+  const url = new URL(request.url());
+  const method = request.method();
+
+  if (state.editionStatus) {
+    return json(
+      route,
+      {
+        error:
+          state.editionError ||
+          "Could not load Chronicle editions."
+      },
+      state.editionStatus
+    );
+  }
+
+  if (state.editionStorageUnavailable) {
+    return json(
+      route,
+      {
+        error:
+          "Chronicle edition storage is not available.",
+        code:
+          "CHRONICLE_EDITION_STORAGE_UNAVAILABLE"
+      },
+      503
+    );
+  }
+
+  if (method === "GET") {
+    const date = url.searchParams.get("date");
+
+    if (date !== null) {
+      if (!isValidDateString(date)) {
+        return json(
+          route,
+          {
+            error:
+              "A valid Chronicle edition date in YYYY-MM-DD format is required."
+          },
+          400
+        );
+      }
+
+      const edition =
+        state.editions.get(date);
+
+      if (!edition) {
+        return json(
+          route,
+          {
+            error:
+              "The Chronicle edition was not found."
+          },
+          404
+        );
+      }
+
+      return json(route, {
+        edition: clone(edition)
+      });
+    }
+
+    const editions =
+      [...state.editions.values()]
+        .sort((first, second) => {
+          const dateDifference =
+            second.date.localeCompare(
+              first.date
+            );
+
+          if (dateDifference !== 0) {
+            return dateDifference;
+          }
+
+          return second.updatedAt.localeCompare(
+            first.updatedAt
+          );
+        })
+        .slice(0, 100)
+        .map(editionMetadata);
+
+    return json(route, {
+      editions,
+      count: editions.length
+    });
+  }
+
+  if (!sameOrigin(request)) {
+    return json(
+      route,
+      { error: "Invalid request origin." },
+      403
+    );
+  }
+
+  const input = await readJson(request);
+  const date =
+    typeof input.date === "string"
+      ? input.date.trim()
+      : "";
+
+  if (!isValidDateString(date)) {
+    return json(
+      route,
+      {
+        error:
+          "A valid Chronicle edition date in YYYY-MM-DD format is required."
+      },
+      400
+    );
+  }
+
+  if (method === "POST") {
+    if (state.sealConflict) {
+      return json(
+        route,
+        {
+          error:
+            "A Chronicle edition has already been sealed for this date."
+        },
+        409
+      );
+    }
+
+    if (state.editions.has(date)) {
+      return json(
+        route,
+        {
+          error:
+            "A Chronicle edition has already been sealed for this date."
+        },
+        409
+      );
+    }
+
+    const sealedAt =
+      new Date().toISOString();
+
+    const edition =
+      createEditionFromChronicle(
+        buildChronicleResponse(data, date),
+        sealedAt
+      );
+
+    state.editions.set(date, edition);
+
+    return json(
+      route,
+      {
+        edition: clone(edition)
+      },
+      201
+    );
+  }
+
+  if (method === "PUT") {
+    const existing =
+      state.editions.get(date);
+
+    if (!existing) {
+      return json(
+        route,
+        {
+          error:
+            "The Chronicle edition was not found."
+        },
+        404
+      );
+    }
+
+    const regenerated =
+      createEditionFromChronicle(
+        buildChronicleResponse(data, date),
+        existing.sealedAt
+      );
+
+    regenerated.updatedAt =
+      new Date(
+        Date.parse(existing.updatedAt) + 60_000
+      ).toISOString();
+
+    state.editions.set(date, regenerated);
+
+    return json(route, {
+      edition: clone(regenerated)
+    });
+  }
+
+  return json(
+    route,
+    { error: "Method not allowed." },
+    405
+  );
 }
 
 async function handleCollection(route, request, data, key, singular) {
@@ -514,6 +856,15 @@ async function handleApi(route, data, state) {
     return json(route, clone(response));
   }
 
+  if (path === "/api/chronicle-editions") {
+    return handleChronicleEditions(
+      route,
+      request,
+      data,
+      state
+    );
+  }
+
   if (path === "/api/issues") {
     return handleCollection(route, request, data, "issues", "issue");
   }
@@ -542,8 +893,20 @@ async function installMockApi(page, options = {}) {
     chronicleError:
       options.chronicleError || null,
     chronicleResponse:
-      options.chronicleResponse || null
+      options.chronicleResponse || null,
+    editionStatus:
+      options.editionStatus || null,
+    editionError:
+      options.editionError || null,
+    editionStorageUnavailable:
+      options.editionStorageUnavailable === true,
+    sealConflict:
+      options.sealConflict === true,
+    editions: null
   };
+
+  state.editions =
+    createInitialEditions(data, options);
 
   await page.route("**/api/**", route => handleApi(route, data, state));
 

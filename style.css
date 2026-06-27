@@ -1280,6 +1280,81 @@ dialog::backdrop {
   column-span: all;
 }
 
+.chronicle-controls {
+  display: grid;
+  gap: 16px;
+  margin: 0 0 22px;
+  padding: 20px;
+  background: rgba(248, 243, 229, 0.72);
+  border: 1px solid var(--border);
+}
+
+.chronicle-date-controls,
+.chronicle-edition-actions,
+.chronicle-archive-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.chronicle-date-label,
+.chronicle-archive-label {
+  display: grid;
+  gap: 6px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chronicle-date-label input,
+.chronicle-archive-label select {
+  min-width: 180px;
+  padding: 10px 11px;
+  color: var(--ink);
+  background: white;
+  border: 1px solid var(--border);
+  font: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.chronicle-controls button {
+  padding: 10px 13px;
+  font-size: 0.84rem;
+}
+
+.chronicle-status-panel {
+  display: grid;
+  gap: 5px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.chronicle-status-label {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chronicle-control-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.chronicle-error {
+  margin: 0;
+  color: #7d1e1e;
+  line-height: 1.45;
+}
+
 .chronicle-block {
   margin: 0 0 30px;
   break-inside: avoid;
@@ -1340,5 +1415,18 @@ dialog::backdrop {
   .chronicle .heading-with-action {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .chronicle-date-controls,
+  .chronicle-edition-actions,
+  .chronicle-archive-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .chronicle-date-label input,
+  .chronicle-archive-label select,
+  .chronicle-controls button {
+    width: 100%;
   }
 }

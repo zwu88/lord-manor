@@ -215,8 +215,104 @@
           class="secondary-button"
           type="button"
         >
-          Refresh Dispatch
+          Refresh Preview
         </button>
+      </div>
+
+      <div class="chronicle-controls">
+        <div class="chronicle-date-controls">
+          <button
+            id="chronicle-previous-day"
+            class="secondary-button"
+            type="button"
+          >
+            Previous Day
+          </button>
+
+          <label
+            class="chronicle-date-label"
+            for="chronicle-date-input"
+          >
+            Edition date
+            <input
+              id="chronicle-date-input"
+              type="date"
+            >
+          </label>
+
+          <button
+            id="chronicle-today-button"
+            class="secondary-button"
+            type="button"
+          >
+            Today
+          </button>
+
+          <button
+            id="chronicle-next-day"
+            class="secondary-button"
+            type="button"
+          >
+            Next Day
+          </button>
+        </div>
+
+        <div class="chronicle-edition-actions">
+          <button
+            id="seal-chronicle-edition"
+            type="button"
+          >
+            Seal Edition
+          </button>
+
+          <button
+            id="regenerate-chronicle-edition"
+            class="secondary-button"
+            type="button"
+          >
+            Regenerate Edition
+          </button>
+        </div>
+
+        <div class="chronicle-archive-controls">
+          <label
+            class="chronicle-archive-label"
+            for="chronicle-edition-select"
+          >
+            Sealed editions
+            <select id="chronicle-edition-select">
+              <option value="">No sealed editions</option>
+            </select>
+          </label>
+
+          <p
+            id="chronicle-archive-empty"
+            class="chronicle-control-note"
+          >
+            No editions have been sealed yet.
+          </p>
+        </div>
+
+        <div class="chronicle-status-panel">
+          <p
+            id="chronicle-edition-status"
+            class="chronicle-status-label"
+          >
+            Opening Chronicle...
+          </p>
+
+          <p
+            id="chronicle-edition-detail"
+            class="chronicle-control-note"
+          ></p>
+
+          <p
+            id="chronicle-edition-error"
+            class="chronicle-error"
+            role="status"
+            hidden
+          ></p>
+        </div>
       </div>
     
       <article
@@ -240,7 +336,9 @@
         </p>
     
         <section class="chronicle-block">
-          <h4>Today’s Orders</h4>
+          <h4 id="chronicle-orders-heading">
+            Today’s Orders
+          </h4>
     
           <div
             id="chronicle-task-list"
@@ -249,7 +347,9 @@
         </section>
     
         <section class="chronicle-block">
-          <h4>Today’s Record</h4>
+          <h4 id="chronicle-record-heading">
+            Today’s Record
+          </h4>
     
           <div
             id="chronicle-issue-list"
