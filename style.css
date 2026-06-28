@@ -726,11 +726,87 @@ dialog::backdrop {
   font-size: 0.85rem;
 }
 
+.planner-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.planner-controls button {
+  padding: 8px 10px;
+  font-size: 0.78rem;
+}
+
+.planner-date-input-label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.planner-date-input-label input {
+  min-width: 150px;
+}
+
+.planner-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.planner-day {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 7px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.planner-day.is-selected {
+  color: white;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.planner-day.is-today:not(.is-selected) {
+  border-color: var(--gold);
+}
+
+.planner-day.is-tomorrow:not(.is-selected) {
+  background: rgba(198, 154, 70, 0.12);
+}
+
+.planner-day-weekday,
+.planner-day-count {
+  font-size: 0.68rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.planner-day-date {
+  font-size: 0.9rem;
+}
+
 .office-date,
 .dialog-date {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.office-error,
+.form-error {
+  margin: 0 0 14px;
+  color: var(--accent);
+  font-weight: bold;
 }
 
 .office-list,
@@ -760,6 +836,10 @@ dialog::backdrop {
   text-decoration: line-through;
 }
 
+.office-card.is-overdue-order {
+  border-color: rgba(123, 39, 39, 0.45);
+}
+
 .office-card-header {
   display: flex;
   align-items: flex-start;
@@ -778,6 +858,14 @@ dialog::backdrop {
   color: var(--gold);
   font-size: 0.78rem;
   font-weight: bold;
+}
+
+.office-card-meta {
+  margin: 9px 0 0;
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: bold;
+  text-transform: uppercase;
 }
 
 .office-card-description {
@@ -836,6 +924,18 @@ dialog::backdrop {
 .office-delete-button:hover {
   color: white;
   background: var(--accent);
+}
+
+.overdue-orders-section {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.overdue-orders-section h4 {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-size: 1.05rem;
 }
 
 .milestone-list {
@@ -913,6 +1013,20 @@ dialog::backdrop {
 
   .office-panel-heading button {
     align-self: flex-start;
+  }
+
+  .planner-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .planner-controls button,
+  .planner-date-input-label input {
+    width: 100%;
+  }
+
+  .planner-week {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

@@ -1,11 +1,41 @@
-const tomorrowDateElement =
-  document.querySelector("#tomorrow-date");
+const plannerHeading =
+  document.querySelector("#planner-heading");
+
+const plannerDateLabel =
+  document.querySelector("#planner-date-label");
+
+const plannerPreviousDayButton =
+  document.querySelector("#planner-previous-day");
+
+const plannerNextDayButton =
+  document.querySelector("#planner-next-day");
+
+const plannerTodayButton =
+  document.querySelector("#planner-today-button");
+
+const plannerTomorrowButton =
+  document.querySelector("#planner-tomorrow-button");
+
+const plannerDateInput =
+  document.querySelector("#planner-date-input");
+
+const plannerWeek =
+  document.querySelector("#planner-week");
+
+const plannerError =
+  document.querySelector("#planner-error");
 
 const tomorrowTaskList =
   document.querySelector("#tomorrow-task-list");
 
 const emptyTasks =
   document.querySelector("#empty-tasks");
+
+const overdueTaskList =
+  document.querySelector("#overdue-task-list");
+
+const emptyOverdueTasks =
+  document.querySelector("#empty-overdue-tasks");
 
 const newTaskButton =
   document.querySelector("#new-task-button");
@@ -19,8 +49,11 @@ const taskForm =
 const taskDialogTitle =
   document.querySelector("#task-dialog-title");
 
-const taskDialogDate =
-  document.querySelector("#task-dialog-date");
+const taskDateInput =
+  document.querySelector("#task-date");
+
+const taskDateError =
+  document.querySelector("#task-date-error");
 
 const taskTitleInput =
   document.querySelector("#task-title");
@@ -90,11 +123,18 @@ const saveMilestoneButton =
   );
 
 let officeProjects = [];
-let tomorrowTasks = [];
+let plannerSelectedTasks = [];
+let plannerOverdueTasks = [];
+let plannerWeekDays = [];
 let officeMilestones = [];
 
 let editingTaskId = null;
 let editingMilestoneId = null;
+let selectedPlannerDate = null;
+let plannerToday = null;
+let plannerTomorrow = null;
+let plannerRequestSequence = 0;
+let plannerLoading = false;
 
 function getLocalDateAtOffset(dayOffset) {
   const date = new Date();
@@ -113,6 +153,49 @@ function getLocalDateAtOffset(dayOffset) {
 
 function getTomorrowDate() {
   return getLocalDateAtOffset(1);
+}
+
+function addOfficeDays(dateString, days) {
+  const date = new Date(
+    `${dateString}T00:00:00.000Z`
+  );
+
+  date.setUTCDate(
+    date.getUTCDate() + days
+  );
+
+  return date.toISOString().slice(0, 10);
+}
+
+function isValidOfficeDate(value) {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value)
+  ) {
+    return false;
+  }
+
+  const date = new Date(
+    `${value}T00:00:00.000Z`
+  );
+
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) ===
+      value
+  );
+}
+
+function describePlannerDate(dateString) {
+  if (dateString === plannerToday) {
+    return "Today";
+  }
+
+  if (dateString === plannerTomorrow) {
+    return "Tomorrow";
+  }
+
+  return formatOfficeDate(dateString, true);
 }
 
 function formatOfficeDate(dateString, long = false) {
@@ -224,6 +307,15 @@ function normalizeOfficeBoolean(value) {
   return value === true || value === 1 || value === "1";
 }
 
+function notifyChronicleOfOrderChange() {
+  if (
+    typeof window.refreshManorChronicle ===
+    "function"
+  ) {
+    window.refreshManorChronicle();
+  }
+}
+
 function populateProjectSelect(
   select,
   allowNoProject
@@ -297,11 +389,21 @@ function milestonePayload(
   };
 }
 
-function createTaskCard(task) {
+function createTaskCard(
+  task,
+  { overdue = false } = {}
+) {
   const card = createOfficeElement(
     "article",
     "office-card"
   );
+
+  if (
+    task.taskDate &&
+    task.taskDate < plannerToday
+  ) {
+    card.classList.add("is-overdue-order");
+  }
 
   const header = createOfficeElement(
     "div",
@@ -339,6 +441,18 @@ function createTaskCard(task) {
 
   header.append(headingContainer);
   card.append(header);
+
+  if (overdue || task.taskDate < plannerToday) {
+    const meta = createOfficeElement(
+      "p",
+      "office-card-meta",
+      overdue
+        ? `Scheduled ${formatOfficeDate(task.taskDate)}`
+        : "Overdue"
+    );
+
+    card.append(meta);
+  }
 
   if (task.description) {
     card.append(
@@ -378,8 +492,7 @@ function createTaskCard(task) {
       completeButton.disabled = true;
 
       try {
-        const payload =
-          await officeApiFetch(
+        await officeApiFetch(
             "/api/tasks",
             {
               method: "PUT",
@@ -391,12 +504,8 @@ function createTaskCard(task) {
             }
           );
 
-        tomorrowTasks =
-          tomorrowTasks.filter(
-            item => item.id !== task.id
-          );
-
-        renderTomorrowTasks();
+        await refreshOrderPlanner();
+        notifyChronicleOfOrderChange();
       } catch (error) {
         window.alert(error.message);
         completeButton.disabled = false;
@@ -416,6 +525,26 @@ function createTaskCard(task) {
   editButton.addEventListener(
     "click",
     () => openTaskDialog(task)
+  );
+
+  const rescheduleButton =
+    createOfficeElement(
+      "button",
+      "office-edit-button",
+      "Reschedule"
+    );
+
+  rescheduleButton.type = "button";
+
+  rescheduleButton.addEventListener(
+    "click",
+    () => {
+      openTaskDialog(task, {
+        focusDate: true
+      }).catch(error => {
+        window.alert(error.message);
+      });
+    }
   );
 
   const deleteButton =
@@ -450,12 +579,8 @@ function createTaskCard(task) {
           }
         );
 
-        tomorrowTasks =
-          tomorrowTasks.filter(
-            item => item.id !== task.id
-          );
-
-        renderTomorrowTasks();
+        await refreshOrderPlanner();
+        notifyChronicleOfOrderChange();
       } catch (error) {
         window.alert(error.message);
         deleteButton.disabled = false;
@@ -463,11 +588,13 @@ function createTaskCard(task) {
     }
   );
 
-  actions.append(
-    completeButton,
-    editButton,
-    deleteButton
-  );
+  actions.append(completeButton);
+
+  if (overdue) {
+    actions.append(rescheduleButton);
+  }
+
+  actions.append(editButton, deleteButton);
 
   card.append(actions);
 
@@ -478,7 +605,7 @@ function renderTomorrowTasks() {
   tomorrowTaskList.replaceChildren();
 
   const orderedTasks =
-    tomorrowTasks
+    plannerSelectedTasks
       .filter(
         task =>
           !normalizeOfficeBoolean(
@@ -501,6 +628,21 @@ function renderTomorrowTasks() {
   for (const task of orderedTasks) {
     tomorrowTaskList.append(
       createTaskCard(task)
+    );
+  }
+}
+
+function renderOverdueTasks() {
+  overdueTaskList.replaceChildren();
+
+  emptyOverdueTasks.hidden =
+    plannerOverdueTasks.length > 0;
+
+  for (const task of plannerOverdueTasks) {
+    overdueTaskList.append(
+      createTaskCard(task, {
+        overdue: true
+      })
     );
   }
 }
@@ -817,21 +959,207 @@ async function loadOfficeProjects() {
   );
 }
 
-async function refreshEstateOffice() {
-  const tomorrowDate = getTomorrowDate();
+function renderPlannerWeek() {
+  plannerWeek.replaceChildren();
 
-  tomorrowDateElement.textContent =
-    formatOfficeDate(tomorrowDate, true);
+  for (const day of plannerWeekDays) {
+    const button =
+      createOfficeElement(
+        "button",
+        "planner-day",
+        ""
+      );
 
-  taskDialogDate.textContent =
-    `For ${formatOfficeDate(
-      tomorrowDate,
+    button.type = "button";
+    button.dataset.date = day.date;
+
+    if (day.date === selectedPlannerDate) {
+      button.classList.add("is-selected");
+      button.setAttribute(
+        "aria-current",
+        "date"
+      );
+    }
+
+    if (day.date === plannerToday) {
+      button.classList.add("is-today");
+    }
+
+    if (day.date === plannerTomorrow) {
+      button.classList.add("is-tomorrow");
+    }
+
+    const weekday =
+      createOfficeElement(
+        "span",
+        "planner-day-weekday",
+        new Intl.DateTimeFormat("en-US", {
+          weekday: "short"
+        }).format(
+          new Date(`${day.date}T12:00:00`)
+        )
+      );
+
+    const date =
+      createOfficeElement(
+        "span",
+        "planner-day-date",
+        new Intl.DateTimeFormat("en-US", {
+          month: "short",
+          day: "numeric"
+        }).format(
+          new Date(`${day.date}T12:00:00`)
+        )
+      );
+
+    const count =
+      createOfficeElement(
+        "span",
+        "planner-day-count",
+        `${day.activeCount} ${
+          day.activeCount === 1
+            ? "Order"
+            : "Orders"
+        }`
+      );
+
+    button.append(weekday, date, count);
+
+    button.addEventListener("click", () => {
+      selectPlannerDate(day.date);
+    });
+
+    plannerWeek.append(button);
+  }
+}
+
+function setPlannerControls() {
+  plannerLoading = Boolean(plannerLoading);
+
+  const disabled = plannerLoading;
+
+  plannerPreviousDayButton.disabled =
+    disabled;
+  plannerNextDayButton.disabled = disabled;
+  plannerTodayButton.disabled =
+    disabled ||
+    selectedPlannerDate === plannerToday;
+  plannerTomorrowButton.disabled =
+    disabled ||
+    selectedPlannerDate === plannerTomorrow;
+  plannerDateInput.disabled = disabled;
+  plannerDateInput.value =
+    selectedPlannerDate || "";
+}
+
+function renderOrderPlanner() {
+  plannerHeading.textContent =
+    `Orders for ${
+      describePlannerDate(selectedPlannerDate)
+    }`;
+
+  plannerDateLabel.textContent =
+    formatOfficeDate(
+      selectedPlannerDate,
       true
-    )}`;
+    );
+
+  emptyTasks.textContent =
+    selectedPlannerDate < plannerToday
+      ? "No active Orders remain for this date."
+      : "No Orders remain for this date.";
+
+  renderTomorrowTasks();
+  renderOverdueTasks();
+  renderPlannerWeek();
+  setPlannerControls();
+}
+
+function selectPlannerDate(dateString) {
+  if (!isValidOfficeDate(dateString)) {
+    return;
+  }
+
+  selectedPlannerDate = dateString;
+  refreshOrderPlanner().catch(error => {
+    plannerError.hidden = false;
+    plannerError.textContent = error.message;
+  });
+}
+
+async function refreshOrderPlanner() {
+  if (!selectedPlannerDate) {
+    selectedPlannerDate = getTomorrowDate();
+  }
+
+  plannerToday = getLocalDateAtOffset(0);
+  plannerTomorrow = addOfficeDays(
+    plannerToday,
+    1
+  );
+
+  const sequence =
+    plannerRequestSequence + 1;
+
+  plannerRequestSequence = sequence;
+  plannerLoading = true;
+  plannerError.hidden = true;
+  plannerError.textContent = "";
+  setPlannerControls();
+
+  try {
+    const payload =
+      await officeApiFetch(
+        `/api/order-planner?date=${
+          encodeURIComponent(
+            selectedPlannerDate
+          )
+        }&today=${encodeURIComponent(
+          plannerToday
+        )}`
+      );
+
+    if (sequence !== plannerRequestSequence) {
+      return;
+    }
+
+    selectedPlannerDate =
+      payload.selectedDate;
+    plannerToday = payload.today;
+    plannerTomorrow = payload.tomorrow;
+    plannerSelectedTasks =
+      payload.selectedOrders ?? [];
+    plannerOverdueTasks =
+      payload.overdueOrders ?? [];
+    plannerWeekDays = payload.week ?? [];
+
+    renderOrderPlanner();
+  } catch (error) {
+    if (sequence !== plannerRequestSequence) {
+      return;
+    }
+
+    plannerError.hidden = false;
+    plannerError.textContent = error.message;
+  } finally {
+    if (sequence === plannerRequestSequence) {
+      plannerLoading = false;
+      setPlannerControls();
+    }
+  }
+}
+
+async function refreshEstateOffice() {
+  selectedPlannerDate =
+    selectedPlannerDate || getTomorrowDate();
 
   emptyTasks.hidden = false;
   emptyTasks.textContent =
-    "Opening tomorrow's orders...";
+    "Opening the Order Planner...";
+
+  emptyOverdueTasks.hidden = false;
+  emptyOverdueTasks.textContent =
+    "Opening overdue Orders...";
 
   emptyMilestones.hidden = false;
   emptyMilestones.textContent =
@@ -839,31 +1167,15 @@ async function refreshEstateOffice() {
 
   const [
     projectPayload,
-    taskPayloadResult,
     milestonePayloadResult
   ] = await Promise.all([
     officeApiFetch("/api/projects"),
-
-    officeApiFetch(
-      `/api/tasks?date=${
-        encodeURIComponent(tomorrowDate)
-      }`
-    ),
 
     officeApiFetch("/api/milestones")
   ]);
 
   officeProjects =
     projectPayload.projects ?? [];
-
-  tomorrowTasks =
-    (taskPayloadResult.tasks ?? [])
-      .filter(
-        task =>
-          !normalizeOfficeBoolean(
-            task.completed
-          )
-      );
 
   officeMilestones =
     milestonePayloadResult.milestones ?? [];
@@ -878,25 +1190,27 @@ async function refreshEstateOffice() {
     false
   );
 
-  emptyTasks.textContent =
-    "No Orders remain for tomorrow.";
-
   emptyMilestones.textContent =
     "No project milestones have been established.";
 
-  renderTomorrowTasks();
+  await refreshOrderPlanner();
   renderMilestones();
 }
 
-async function openTaskDialog(task = null) {
+async function openTaskDialog(
+  task = null,
+  { focusDate = false } = {}
+) {
   await loadOfficeProjects();
 
   taskForm.reset();
   editingTaskId = task?.id || null;
+  taskDateError.hidden = true;
+  taskDateError.textContent = "";
 
   taskDialogTitle.textContent = task
-    ? "Amend Tomorrow's Order"
-    : "Prepare Tomorrow's Order";
+    ? "Amend the Order"
+    : "Prepare an Order";
 
   saveTaskButton.textContent = task
     ? "Save the Amendment"
@@ -904,21 +1218,33 @@ async function openTaskDialog(task = null) {
 
   if (task) {
     taskTitleInput.value = task.title;
+    taskDateInput.value = task.taskDate;
 
     taskProjectInput.value =
       task.projectId || "";
 
     taskDescriptionInput.value =
       task.description || "";
+  } else {
+    taskDateInput.value =
+      selectedPlannerDate || getTomorrowDate();
   }
 
   taskDialog.showModal();
-  taskTitleInput.focus();
+
+  if (focusDate) {
+    taskDateInput.focus();
+  } else {
+    taskTitleInput.focus();
+  }
 }
 
 function closeTaskDialog() {
   taskDialog.close();
   editingTaskId = null;
+  taskDateError.hidden = true;
+  taskDateError.textContent = "";
+  newTaskButton.focus();
 }
 
 async function openMilestoneDialog(
@@ -975,9 +1301,66 @@ function closeMilestoneDialog() {
 newTaskButton.addEventListener(
   "click",
   () => {
+    if (
+      selectedPlannerDate &&
+      plannerToday &&
+      selectedPlannerDate < plannerToday
+    ) {
+      window.alert(
+        "Choose today or a future date in the Order form before sealing a new Order."
+      );
+    }
+
     openTaskDialog().catch(error => {
       window.alert(error.message);
     });
+  }
+);
+
+plannerPreviousDayButton.addEventListener(
+  "click",
+  () => {
+    selectPlannerDate(
+      addOfficeDays(selectedPlannerDate, -1)
+    );
+  }
+);
+
+plannerNextDayButton.addEventListener(
+  "click",
+  () => {
+    selectPlannerDate(
+      addOfficeDays(selectedPlannerDate, 1)
+    );
+  }
+);
+
+plannerTodayButton.addEventListener(
+  "click",
+  () => {
+    selectPlannerDate(plannerToday);
+  }
+);
+
+plannerTomorrowButton.addEventListener(
+  "click",
+  () => {
+    selectPlannerDate(plannerTomorrow);
+  }
+);
+
+plannerDateInput.addEventListener(
+  "change",
+  () => {
+    if (
+      isValidOfficeDate(
+        plannerDateInput.value
+      )
+    ) {
+      selectPlannerDate(
+        plannerDateInput.value
+      );
+    }
   }
 );
 
@@ -1023,6 +1406,27 @@ taskForm.addEventListener(
         : "Sealing...";
 
     try {
+      const taskDate = taskDateInput.value;
+
+      if (!isValidOfficeDate(taskDate)) {
+        taskDateError.hidden = false;
+        taskDateError.textContent =
+          "Choose a valid Order date.";
+        taskDateInput.focus();
+        return;
+      }
+
+      if (taskDate < getLocalDateAtOffset(0)) {
+        taskDateError.hidden = false;
+        taskDateError.textContent =
+          "Orders can only be prepared or rescheduled for today or a future date.";
+        taskDateInput.focus();
+        return;
+      }
+
+      taskDateError.hidden = true;
+      taskDateError.textContent = "";
+
       const payload =
         await officeApiFetch(
           "/api/tasks",
@@ -1033,7 +1437,7 @@ taskForm.addEventListener(
 
             body: JSON.stringify({
               id: editingTaskId,
-              taskDate: getTomorrowDate(),
+              taskDate,
               title:
                 taskTitleInput.value.trim(),
               description:
@@ -1046,31 +1450,9 @@ taskForm.addEventListener(
           }
         );
 
-      if (editingTaskId) {
-        tomorrowTasks =
-          tomorrowTasks.map(task =>
-            task.id === editingTaskId
-              ? {
-                  ...task,
-                  ...payload.task,
-                  createdAt:
-                    payload.task.createdAt ??
-                    task.createdAt
-                }
-              : task
-          );
-      } else {
-        if (
-          !normalizeOfficeBoolean(
-            payload.task.completed
-          )
-        ) {
-          tomorrowTasks.push(payload.task);
-        }
-      }
-
-      renderTomorrowTasks();
       closeTaskDialog();
+      await refreshOrderPlanner();
+      notifyChronicleOfOrderChange();
     } catch (error) {
       window.alert(error.message);
     } finally {
