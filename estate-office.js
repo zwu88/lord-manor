@@ -307,7 +307,7 @@ function normalizeOfficeBoolean(value) {
   return value === true || value === 1 || value === "1";
 }
 
-function notifyChronicleOfOrderChange() {
+function notifyChronicleOfOfficeRecordChange() {
   if (
     typeof window.refreshManorChronicle ===
     "function"
@@ -505,7 +505,7 @@ function createTaskCard(
           );
 
         await refreshOrderPlanner();
-        notifyChronicleOfOrderChange();
+        notifyChronicleOfOfficeRecordChange();
       } catch (error) {
         window.alert(error.message);
         completeButton.disabled = false;
@@ -580,7 +580,7 @@ function createTaskCard(
         );
 
         await refreshOrderPlanner();
-        notifyChronicleOfOrderChange();
+        notifyChronicleOfOfficeRecordChange();
       } catch (error) {
         window.alert(error.message);
         deleteButton.disabled = false;
@@ -763,6 +763,7 @@ function createMilestoneCard(milestone) {
           );
 
         renderMilestones();
+        notifyChronicleOfOfficeRecordChange();
       } catch (error) {
         window.alert(error.message);
         completeButton.disabled = false;
@@ -825,6 +826,7 @@ function createMilestoneCard(milestone) {
           );
 
         renderMilestones();
+        notifyChronicleOfOfficeRecordChange();
       } catch (error) {
         window.alert(error.message);
         deleteButton.disabled = false;
@@ -1452,7 +1454,7 @@ taskForm.addEventListener(
 
       closeTaskDialog();
       await refreshOrderPlanner();
-      notifyChronicleOfOrderChange();
+      notifyChronicleOfOfficeRecordChange();
     } catch (error) {
       window.alert(error.message);
     } finally {
@@ -1532,6 +1534,7 @@ milestoneForm.addEventListener(
       }
 
       renderMilestones();
+      notifyChronicleOfOfficeRecordChange();
       closeMilestoneDialog();
     } catch (error) {
       window.alert(error.message);

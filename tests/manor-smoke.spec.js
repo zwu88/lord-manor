@@ -782,14 +782,49 @@ test("shows duplicate seal conflicts without getting stuck", async ({ page }) =>
   page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
   page.errorMonitor.allowConsoleError(/Failed to load resource:.*409/);
 
-  await openManor(page, {
+  const fixture = await openManor(page, {
     noTodayEdition: true,
     sealConflict: true
   });
+  const liveRequests = [];
+  const postedBodies = [];
 
   await expect(page.locator("#chronicle-edition-status")).toHaveText(
     "Unsealed Reconstruction"
   );
+  await expect(page.getByRole("button", { name: "Seal Edition" })).toBeEnabled();
+
+  page.on("request", request => {
+    const url = new URL(request.url());
+
+    if (url.pathname === "/api/chronicle") {
+      liveRequests.push(url.search);
+    }
+
+    if (
+      url.pathname === "/api/chronicle-editions" &&
+      request.method() === "POST"
+    ) {
+      postedBodies.push(JSON.parse(request.postData() || "{}"));
+    }
+  });
+
+  await Promise.all([
+    page.waitForResponse(response => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/order-planner" &&
+        url.searchParams.get("date") === fixture.today &&
+        response.status() === 200
+      );
+    }),
+    page.getByRole("button", { name: "Today" }).first().click()
+  ]);
+  await expect(page.locator("#tomorrow-task-list")).toContainText(
+    "Read the morning orders"
+  );
+
   await Promise.all([
     page.waitForResponse(response => {
       const request = response.request();
@@ -804,6 +839,8 @@ test("shows duplicate seal conflicts without getting stuck", async ({ page }) =>
     page.getByRole("button", { name: "Seal Edition" }).click()
   ]);
 
+  expect(postedBodies).toEqual([{ date: fixture.today }]);
+  expect(liveRequests).toEqual([]);
   await expect(page.locator("#chronicle-edition-error")).toContainText(
     "already been sealed"
   );

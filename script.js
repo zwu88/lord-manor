@@ -258,6 +258,15 @@ const recentIssueList =
 const emptyRecentIssues =
   document.querySelector("#empty-recent-issues");
 
+function notifyChronicleOfRecordChange() {
+  if (
+    typeof window.refreshManorChronicle ===
+    "function"
+  ) {
+    window.refreshManorChronicle();
+  }
+}
+
 const operationalDepartmentView =
   document.querySelector(
     "#operational-department-view"
@@ -1089,6 +1098,7 @@ function createIssueCard(issue) {
         );
 
         renderIssues();
+        notifyChronicleOfRecordChange();
       } catch (error) {
         window.alert(error.message);
         deleteButton.disabled = false;
@@ -1430,6 +1440,7 @@ function createProjectCard(project) {
         renderProjects();
         renderIssues();
         updateIssueProjectOptions();
+        notifyChronicleOfRecordChange();
         
         if (window.refreshEstateOffice) {
           window.refreshEstateOffice().catch(
@@ -1809,6 +1820,7 @@ async function migrateLegacyIssues() {
   );
 
   await refreshIssues();
+  notifyChronicleOfRecordChange();
 
   window.alert(
     "Your browser records have been imported into D1."
@@ -2037,6 +2049,7 @@ issueForm.addEventListener(
       }
 
       renderIssues();
+      notifyChronicleOfRecordChange();
       closeIssueDialog();
     } catch (error) {
       window.alert(error.message);
@@ -2138,6 +2151,7 @@ projectForm.addEventListener(
       renderProjects();
       renderIssues();
       updateIssueProjectOptions();
+      notifyChronicleOfRecordChange();
       
       if (window.refreshEstateOffice) {
         window.refreshEstateOffice().catch(
