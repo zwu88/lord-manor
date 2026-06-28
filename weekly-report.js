@@ -2,6 +2,9 @@
   const departmentMap =
     window.MANOR_DEPARTMENT_MAP ?? {};
 
+  const manorEvents =
+    window.Manor?.events;
+
   const manorSettings =
     window.MANOR_SETTINGS ?? {
       currencyCode: "USD",
@@ -793,6 +796,45 @@
     }
   );
 
+  manorEvents?.on(
+    manorEvents.names.ROUTE_CHANGED,
+    payload => {
+      if (
+        payload?.pageType === "chronicle" &&
+        !payload.wasChronicleDepartmentVisible
+      ) {
+        refreshVisibleReport().catch(
+          console.error
+        );
+      }
+    }
+  );
+
+  for (const eventName of [
+    manorEvents?.names.ISSUE_CHANGED,
+    manorEvents?.names.PROJECT_CHANGED,
+    manorEvents?.names.MILESTONE_CHANGED
+  ]) {
+    if (eventName) {
+      manorEvents.on(
+        eventName,
+        () => {
+          refreshVisibleReport().catch(
+            console.error
+          );
+        }
+      );
+    }
+  }
+
+  if (window.Manor?.features) {
+    window.Manor.features.weeklyReport =
+      Object.freeze({
+        refresh: refreshVisibleReport
+      });
+  }
+
+  // Compatibility shim for older callers. New cross-feature refreshes use Manor events.
   window.refreshWeeklyEstateReport =
     refreshVisibleReport;
 

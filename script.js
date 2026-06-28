@@ -7,6 +7,9 @@ const MIGRATION_STORAGE_KEY =
 const departments =
   window.MANOR_DEPARTMENTS ?? [];
 
+const scriptManorEvents =
+  window.Manor?.events;
+
 const departmentMap =
   window.MANOR_DEPARTMENT_MAP ?? {};
 
@@ -258,20 +261,8 @@ const recentIssueList =
 const emptyRecentIssues =
   document.querySelector("#empty-recent-issues");
 
-function notifyChronicleOfRecordChange() {
-  if (
-    typeof window.refreshManorChronicle ===
-    "function"
-  ) {
-    window.refreshManorChronicle();
-  }
-
-  if (
-    typeof window.refreshWeeklyEstateReport ===
-    "function"
-  ) {
-    window.refreshWeeklyEstateReport();
-  }
+function emitManorEvent(eventName, payload = {}) {
+  scriptManorEvents?.emit(eventName, payload);
 }
 
 const operationalDepartmentView =
@@ -405,12 +396,24 @@ function showLoginScreen() {
   manorApplication.hidden = true;
   loginScreen.hidden = false;
   loginPasswordInput.focus();
+  emitManorEvent(
+    scriptManorEvents?.names.SESSION_CHANGED,
+    {
+      authenticated: false
+    }
+  );
 }
 
 function showManor() {
   loginScreen.hidden = true;
   manorApplication.hidden = false;
   routeManorView();
+  emitManorEvent(
+    scriptManorEvents?.names.SESSION_CHANGED,
+    {
+      authenticated: true
+    }
+  );
 }
 
 async function checkSession() {
@@ -881,29 +884,32 @@ function renderDepartmentPage() {
   if (pageType === "chronicle") {
     chronicleDepartmentView.hidden =
       false;
-
-    if (
-      !wasChronicleDepartmentVisible &&
-      typeof window.refreshWeeklyEstateReport ===
-      "function"
-    ) {
-      window.refreshWeeklyEstateReport();
-    }
   }
 
   if (pageType === "treasury") {
     treasuryDepartmentView.hidden =
       false;
-  
-    window.ManorTreasury.render(
-      issues
-    );
+
+    const treasuryFeature =
+      window.Manor?.features?.treasury ||
+      window.ManorTreasury;
+
+    treasuryFeature.render(issues);
   }
 
   window.scrollTo({
     top: 0,
     behavior: "instant"
   });
+
+  emitManorEvent(
+    scriptManorEvents?.names.ROUTE_CHANGED,
+    {
+      departmentId: department.id,
+      pageType,
+      wasChronicleDepartmentVisible
+    }
+  );
 }
 
 function routeManorView() {
@@ -912,6 +918,13 @@ function routeManorView() {
   } else {
     manorHome.hidden = false;
     departmentPage.hidden = true;
+    emitManorEvent(
+      scriptManorEvents?.names.ROUTE_CHANGED,
+      {
+        departmentId: null,
+        pageType: "home"
+      }
+    );
   }
 }
 
@@ -1117,7 +1130,13 @@ function createIssueCard(issue) {
         );
 
         renderIssues();
-        notifyChronicleOfRecordChange();
+        emitManorEvent(
+          scriptManorEvents?.names.ISSUE_CHANGED,
+          {
+            action: "delete",
+            issueId: issue.id
+          }
+        );
       } catch (error) {
         window.alert(error.message);
         deleteButton.disabled = false;
@@ -1459,13 +1478,13 @@ function createProjectCard(project) {
         renderProjects();
         renderIssues();
         updateIssueProjectOptions();
-        notifyChronicleOfRecordChange();
-        
-        if (window.refreshEstateOffice) {
-          window.refreshEstateOffice().catch(
-            console.error
-          );
-        }
+        emitManorEvent(
+          scriptManorEvents?.names.PROJECT_CHANGED,
+          {
+            action: "delete",
+            projectId: project.id
+          }
+        );
       } catch (error) {
         window.alert(error.message);
         deleteButton.disabled = false;
@@ -1839,7 +1858,12 @@ async function migrateLegacyIssues() {
   );
 
   await refreshIssues();
-  notifyChronicleOfRecordChange();
+  emitManorEvent(
+    scriptManorEvents?.names.ISSUE_CHANGED,
+    {
+      action: "legacy-import"
+    }
+  );
 
   window.alert(
     "Your browser records have been imported into D1."
@@ -2068,7 +2092,13 @@ issueForm.addEventListener(
       }
 
       renderIssues();
-      notifyChronicleOfRecordChange();
+      emitManorEvent(
+        scriptManorEvents?.names.ISSUE_CHANGED,
+        {
+          action: isEditing ? "edit" : "create",
+          issueId: completeIssue.id
+        }
+      );
       closeIssueDialog();
     } catch (error) {
       window.alert(error.message);
@@ -2170,13 +2200,14 @@ projectForm.addEventListener(
       renderProjects();
       renderIssues();
       updateIssueProjectOptions();
-      notifyChronicleOfRecordChange();
-      
-      if (window.refreshEstateOffice) {
-        window.refreshEstateOffice().catch(
-          console.error
-        );
-      }
+      emitManorEvent(
+        scriptManorEvents?.names.PROJECT_CHANGED,
+        {
+          action:
+            editingProjectId ? "edit" : "create",
+          projectId: payload.project.id
+        }
+      );
       
       closeProjectDialog();
       

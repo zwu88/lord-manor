@@ -2,6 +2,9 @@
   const departments =
     window.MANOR_DEPARTMENT_MAP ?? {};
 
+  const manorEvents =
+    window.Manor?.events;
+
   const manorApplication =
     document.querySelector(
       "#manor-application"
@@ -1034,6 +1037,19 @@
     requestSequence += 1;
   }
 
+  function refreshLiveChronicleForChange() {
+    if (currentMode !== "live") {
+      return;
+    }
+
+    loadEditionOrLive(
+      selectedDate,
+      {
+        forceLive: true
+      }
+    ).catch(console.error);
+  }
+
   async function refreshPreview() {
     cancelPendingChronicleLoads();
     refreshButton.disabled = true;
@@ -1268,6 +1284,31 @@
 
   setButtonState();
 
+  for (const eventName of [
+    manorEvents?.names.ISSUE_CHANGED,
+    manorEvents?.names.PROJECT_CHANGED,
+    manorEvents?.names.MILESTONE_CHANGED,
+    manorEvents?.names.ORDER_CHANGED
+  ]) {
+    if (eventName) {
+      manorEvents.on(
+        eventName,
+        refreshLiveChronicleForChange
+      );
+    }
+  }
+
+  if (window.Manor?.features) {
+    window.Manor.features.chronicle =
+      Object.freeze({
+        refresh:
+          () => loadEditionOrLive(selectedDate),
+        refreshLiveForChange:
+          refreshLiveChronicleForChange
+      });
+  }
+
+  // Compatibility shim for older callers. New cross-feature refreshes use Manor events.
   window.refreshManorChronicle =
     () => loadEditionOrLive(
       selectedDate
