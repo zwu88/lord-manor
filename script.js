@@ -265,6 +265,13 @@ function notifyChronicleOfRecordChange() {
   ) {
     window.refreshManorChronicle();
   }
+
+  if (
+    typeof window.refreshWeeklyEstateReport ===
+    "function"
+  ) {
+    window.refreshWeeklyEstateReport();
+  }
 }
 
 const operationalDepartmentView =
@@ -820,6 +827,10 @@ function renderDepartmentPage() {
   manorHome.hidden = true;
   departmentPage.hidden = false;
 
+  const wasChronicleDepartmentVisible =
+    !departmentPage.hidden &&
+    !chronicleDepartmentView.hidden;
+
   operationalDepartmentView.hidden = true;
   councilDepartmentView.hidden = true;
   chronicleDepartmentView.hidden = true;
@@ -870,6 +881,14 @@ function renderDepartmentPage() {
   if (pageType === "chronicle") {
     chronicleDepartmentView.hidden =
       false;
+
+    if (
+      !wasChronicleDepartmentVisible &&
+      typeof window.refreshWeeklyEstateReport ===
+      "function"
+    ) {
+      window.refreshWeeklyEstateReport();
+    }
   }
 
   if (pageType === "treasury") {
