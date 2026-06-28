@@ -30,11 +30,13 @@ jobs:
         run: |
           set -euo pipefail
 
+          node --check manor.js
           node --check script.js
           node --check estate-office.js
           node --check departments.js
           node --check treasury.js
           node --check chronicle.js
+          node --check weekly-report.js
 
       - name: Check Cloudflare Functions
         shell: bash

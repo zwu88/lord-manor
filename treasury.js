@@ -522,8 +522,17 @@
     );
   }
 
-  window.ManorTreasury =
+  const treasuryFeature =
     Object.freeze({
       render
     });
+
+  if (window.Manor?.features) {
+    window.Manor.features.treasury =
+      treasuryFeature;
+  }
+
+  // Compatibility shim for older callers. New code should use Manor.features.
+  window.ManorTreasury =
+    treasuryFeature;
 })();

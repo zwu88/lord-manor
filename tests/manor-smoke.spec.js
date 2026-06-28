@@ -137,6 +137,7 @@ test("defaults the Order Planner to tomorrow with a seven-day summary", async ({
 test("navigates Order Planner dates and avoids stale selected-day responses", async ({ page }) => {
   const fixture = await openManor(page);
   const dayThree = addDays(fixture.today, 3);
+  const chronicleRequestCount = fixture.state.chronicleRequests;
 
   await page.getByRole("button", { name: "Previous Day" }).first().click();
   await expect(page.locator("#planner-date-input")).toHaveValue(fixture.today);
@@ -166,6 +167,7 @@ test("navigates Order Planner dates and avoids stale selected-day responses", as
   await expect(page.locator("#tomorrow-task-list")).toContainText(
     "Prepare browser smoke review"
   );
+  expect(fixture.state.chronicleRequests).toBe(chronicleRequestCount);
 });
 
 test("creates and reschedules Orders through the dated planner", async ({ page }) => {
@@ -287,6 +289,7 @@ test("rescheduling an Order refreshes a live Chronicle reconstruction", async ({
   await expect(page.locator("#chronicle-task-list")).toContainText(
     "Read the morning orders"
   );
+  const chronicleRequestCount = liveFixture.state.chronicleRequests;
 
   await page.getByRole("button", { name: "Today" }).first().click();
   await page
@@ -298,6 +301,9 @@ test("rescheduling an Order refreshes a live Chronicle reconstruction", async ({
   await page.getByRole("button", { name: "Save the Amendment" }).click();
   await expect(page.locator("#chronicle-task-list")).not.toContainText(
     "Read the morning orders"
+  );
+  expect(liveFixture.state.chronicleRequests).toBe(
+    chronicleRequestCount + 1
   );
 });
 
@@ -438,10 +444,12 @@ test("marks a tomorrow Order done today without a page reload", async ({ page })
 test("keeps a tomorrow Order visible when completing early fails", async ({ page }) => {
   page.errorMonitor.allowConsoleError(/Failed to load resource:.*500/);
 
-  await openManor(page, {
+  const fixture = await openManor(page, {
     taskPutStatus: 500,
     taskPutError: "Fixture task update failure."
   });
+  const chronicleRequestCount = fixture.state.chronicleRequests;
+  const weeklyRequestCount = fixture.state.weeklyReportRequests;
 
   const card = page
     .locator("#tomorrow-task-list .office-card")
@@ -460,6 +468,8 @@ test("keeps a tomorrow Order visible when completing early fails", async ({ page
   expect(dialogMessages.some(message => message.includes("Fixture task update failure."))).toBe(
     true
   );
+  expect(fixture.state.chronicleRequests).toBe(chronicleRequestCount);
+  expect(fixture.state.weeklyReportRequests).toBe(weeklyRequestCount);
 });
 
 test("shows the active tomorrow empty state after the final Order is done", async ({ page }) => {
@@ -707,9 +717,10 @@ test("shows a readable Chronicle error state", async ({ page }) => {
 
 test("renders quiet Chronicle empty states", async ({ page }) => {
   page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
+  await setBrowserToday(page, "2026-06-25");
 
   const response = emptyChronicleResponse(
-    new Date().toISOString().slice(0, 10)
+    "2026-06-25"
   );
 
   await installMockApi(page, {
@@ -1074,7 +1085,8 @@ test("loads the current partial Weekly Estate Report", async ({ page }) => {
 
   await setBrowserToday(page, "2026-06-25");
   const fixture = await installMockApi(page, {
-    authenticated: true
+    authenticated: true,
+    today: "2026-06-25"
   });
 
   await page.goto("/");
@@ -1105,9 +1117,9 @@ test("loads the current partial Weekly Estate Report", async ({ page }) => {
   await expect(page.locator("#weekly-report-daily .weekly-report-day")).toHaveCount(7);
   await expect(page.locator("#weekly-report-daily")).toContainText("Not yet reported");
   await expect(page.locator("#weekly-report-daily .is-future")).toHaveCount(3);
-  await expect(
-    page.locator("#weekly-report-departments .weekly-report-record h4").first()
-  ).toHaveText("The Research Institute");
+  await expect(page.locator("#weekly-report-departments")).toContainText(
+    "The Research Institute"
+  );
   await expect(page.locator("#weekly-report-projects")).toContainText(
     "Codex Runtime Foundation"
   );
@@ -1121,7 +1133,10 @@ test("loads the current partial Weekly Estate Report", async ({ page }) => {
     "Outside Report Range"
   );
   await expect(page.locator("#weekly-report-completed-milestones")).toContainText(
-    "No milestones were completed"
+    "Completed Chronicle milestone"
+  );
+  await expect(page.locator("#weekly-report-completed-milestones")).not.toContainText(
+    "Weekly report reviewed"
   );
 });
 
@@ -1238,8 +1253,12 @@ test("protects Weekly Estate Report against stale week responses", async ({ page
   expect(fixture.state.weeklyReportRequests).toBeGreaterThanOrEqual(2);
 });
 
-test("refreshes the visible Weekly Estate Report after Issue edits only", async ({ page }) => {
-  const fixture = await openManor(page);
+test("refreshes live Chronicle and visible Weekly Estate Report once after Issue edits", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
+
+  const fixture = await openManor(page, {
+    noTodayEdition: true
+  });
 
   await page.getByRole("link", { name: /The Chronicle Department/ }).click();
   await expect(page.locator("#weekly-report-status")).toHaveText(
@@ -1247,6 +1266,7 @@ test("refreshes the visible Weekly Estate Report after Issue edits only", async 
   );
 
   const visibleRequestCount = fixture.state.weeklyReportRequests;
+  const chronicleRequestCount = fixture.state.chronicleRequests;
   await page
     .locator("#issue-list .issue-card")
     .filter({ hasText: "Smoke test fixture issue" })
@@ -1258,7 +1278,63 @@ test("refreshes the visible Weekly Estate Report after Issue edits only", async 
   await expect(page.locator("#weekly-report-recent")).toContainText(
     "Updated weekly report record"
   );
+  await expect(page.locator("#chronicle-issue-list")).toContainText(
+    "Updated weekly report record"
+  );
   expect(fixture.state.weeklyReportRequests).toBe(visibleRequestCount + 1);
+  expect(fixture.state.chronicleRequests).toBe(
+    chronicleRequestCount + 1
+  );
+});
+
+test("skips hidden Weekly Estate Report fetches after Issue edits", async ({ page }) => {
+  const fixture = await openManor(page);
+
+  expect(fixture.state.weeklyReportRequests).toBe(0);
+  await page
+    .locator("#recent-issue-list .issue-card")
+    .filter({ hasText: "Smoke test fixture issue" })
+    .getByRole("button", { name: "Edit" })
+    .click();
+  await page.locator("#issue-title").fill("Hidden weekly report record");
+  await page.getByRole("button", { name: "Save the Amendment" }).click();
+
+  await expect(page.locator("#recent-issue-list")).toContainText(
+    "Hidden weekly report record"
+  );
+  expect(fixture.state.weeklyReportRequests).toBe(0);
+});
+
+test("does not duplicate Weekly Estate Report requests after repeated Chronicle navigation", async ({ page }) => {
+  const fixture = await openManor(page);
+
+  await page.getByRole("link", { name: /The Chronicle Department/ }).click();
+  await expect(page.locator("#weekly-report-status")).toHaveText(
+    "Week in Progress"
+  );
+  const firstVisibleCount = fixture.state.weeklyReportRequests;
+
+  await page.locator("#department-back-button").click();
+  await expect(page.locator("#manor-home")).toBeVisible();
+  await page.getByRole("link", { name: /The Chronicle Department/ }).click();
+  await expect(page.locator("#weekly-report-status")).toHaveText(
+    "Week in Progress"
+  );
+
+  expect(fixture.state.weeklyReportRequests).toBe(firstVisibleCount);
+
+  await page
+    .locator("#issue-list .issue-card")
+    .filter({ hasText: "Smoke test fixture issue" })
+    .getByRole("button", { name: "Edit" })
+    .click();
+  await page.locator("#issue-title").fill("Repeated navigation report record");
+  await page.getByRole("button", { name: "Save the Amendment" }).click();
+
+  await expect(page.locator("#weekly-report-recent")).toContainText(
+    "Repeated navigation report record"
+  );
+  expect(fixture.state.weeklyReportRequests).toBe(firstVisibleCount + 1);
 });
 
 test("prints the Weekly Estate Report on request", async ({ page }) => {

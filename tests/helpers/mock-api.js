@@ -1,4 +1,14 @@
-const TODAY = new Date().toISOString().slice(0, 10);
+function getLocalDateString() {
+  const now = new Date();
+  const timezoneOffset =
+    now.getTimezoneOffset() * 60_000;
+
+  return new Date(now.getTime() - timezoneOffset)
+    .toISOString()
+    .slice(0, 10);
+}
+
+const TODAY = getLocalDateString();
 const CHRONICLE_FORMAT_VERSION = 2;
 
 function addDays(dateString, days) {
@@ -15,7 +25,8 @@ function normalizeBoolean(value) {
   return value === true || value === 1 || value === "1";
 }
 
-function createInitialData() {
+function createInitialData(today = TODAY) {
+  const TODAY = today;
   const project = {
     id: "project-council-1",
     name: "Codex Runtime Foundation",
@@ -641,8 +652,14 @@ const WEEKLY_DEPARTMENTS = {
   }
 };
 
+function fixtureTodayForData(data) {
+  return data.projects[0]?.startDate || TODAY;
+}
+
 function weeklyFixtureIssues(data) {
-  const weekStart = weekStartFor(TODAY);
+  const weekStart = weekStartFor(
+    fixtureTodayForData(data)
+  );
   const project = data.projects[0];
 
   return [
@@ -703,7 +720,9 @@ function weeklyFixtureIssues(data) {
 }
 
 function weeklyFixtureProjects(data) {
-  const weekStart = weekStartFor(TODAY);
+  const weekStart = weekStartFor(
+    fixtureTodayForData(data)
+  );
 
   return [
     ...clone(data.projects),
@@ -725,7 +744,9 @@ function weeklyFixtureProjects(data) {
 }
 
 function weeklyFixtureMilestones(data) {
-  const weekStart = weekStartFor(TODAY);
+  const weekStart = weekStartFor(
+    fixtureTodayForData(data)
+  );
 
   return [
     ...clone(data.milestones),
@@ -1461,6 +1482,8 @@ async function handleApi(route, data, state) {
   }
 
   if (path === "/api/chronicle") {
+    state.chronicleRequests += 1;
+
     if (state.chronicleStatus) {
       return json(
         route,
@@ -1634,7 +1657,8 @@ async function handleApi(route, data, state) {
 }
 
 async function installMockApi(page, options = {}) {
-  const data = createInitialData();
+  const today = options.today || TODAY;
+  const data = createInitialData(today);
   const state = {
     authenticated: options.authenticated === true,
     chronicleStatus:
@@ -1643,6 +1667,7 @@ async function installMockApi(page, options = {}) {
       options.chronicleError || null,
     chronicleResponse:
       options.chronicleResponse || null,
+    chronicleRequests: 0,
     editionStatus:
       options.editionStatus || null,
     editionError:
@@ -1677,8 +1702,8 @@ async function installMockApi(page, options = {}) {
   return {
     data,
     state,
-    today: TODAY,
-    tomorrow: addDays(TODAY, 1)
+    today,
+    tomorrow: addDays(today, 1)
   };
 }
 

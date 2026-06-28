@@ -36,6 +36,19 @@ Development-only test dependencies are permitted.
 - Continue using ordinary browser scripts rather than ES modules
   unless an explicit migration is approved.
 - Prefer small dedicated JavaScript files over expanding `script.js`.
+- Load `manor.js` after `departments.js` and before feature scripts.
+  It owns the `window.Manor` namespace for cross-feature events, shared
+  browser utilities, static configuration, and feature registrations.
+- Use `Manor.events` for feature-to-feature refreshes. Mutations should
+  emit domain events such as `issue:changed`, `project:changed`,
+  `milestone:changed`, or `order:changed`; interested features should
+  subscribe instead of calling another feature's global refresh function.
+- Keep legacy `window.*` feature refresh shims only as compatibility
+  wrappers. New code should register or call feature APIs through
+  `Manor.features`.
+- Weekly Estate Report refreshes should ignore Order events unless the
+  report starts including Orders. Hidden Weekly Report views should not
+  fetch solely because another feature changed data.
 
 ## Application terminology
 
@@ -61,11 +74,13 @@ Development-only test dependencies are permitted.
 After modifying browser JavaScript, run:
 
 ```bash
+node --check manor.js
 node --check script.js
 node --check estate-office.js
 node --check departments.js
 node --check treasury.js
 node --check chronicle.js
+node --check weekly-report.js
 ```
 
 Also syntax-check all JavaScript files under `functions/` as ES

@@ -1,6 +1,9 @@
 const plannerHeading =
   document.querySelector("#planner-heading");
 
+const officeManorEvents =
+  window.Manor?.events;
+
 const plannerDateLabel =
   document.querySelector("#planner-date-label");
 
@@ -307,20 +310,22 @@ function normalizeOfficeBoolean(value) {
   return value === true || value === 1 || value === "1";
 }
 
-function notifyChronicleOfOfficeRecordChange() {
-  if (
-    typeof window.refreshManorChronicle ===
-    "function"
-  ) {
-    window.refreshManorChronicle();
-  }
+function emitOfficeEvent(eventName, payload = {}) {
+  officeManorEvents?.emit(eventName, payload);
+}
 
-  if (
-    typeof window.refreshWeeklyEstateReport ===
-    "function"
-  ) {
-    window.refreshWeeklyEstateReport();
-  }
+function emitOrderChanged(payload) {
+  emitOfficeEvent(
+    officeManorEvents?.names.ORDER_CHANGED,
+    payload
+  );
+}
+
+function emitMilestoneChanged(payload) {
+  emitOfficeEvent(
+    officeManorEvents?.names.MILESTONE_CHANGED,
+    payload
+  );
 }
 
 function populateProjectSelect(
@@ -512,7 +517,10 @@ function createTaskCard(
           );
 
         await refreshOrderPlanner();
-        notifyChronicleOfOfficeRecordChange();
+        emitOrderChanged({
+          action: "complete",
+          orderId: task.id
+        });
       } catch (error) {
         window.alert(error.message);
         completeButton.disabled = false;
@@ -587,7 +595,10 @@ function createTaskCard(
         );
 
         await refreshOrderPlanner();
-        notifyChronicleOfOfficeRecordChange();
+        emitOrderChanged({
+          action: "delete",
+          orderId: task.id
+        });
       } catch (error) {
         window.alert(error.message);
         deleteButton.disabled = false;
@@ -770,7 +781,10 @@ function createMilestoneCard(milestone) {
           );
 
         renderMilestones();
-        notifyChronicleOfOfficeRecordChange();
+        emitMilestoneChanged({
+          action: "toggle",
+          milestoneId: milestone.id
+        });
       } catch (error) {
         window.alert(error.message);
         completeButton.disabled = false;
@@ -833,7 +847,10 @@ function createMilestoneCard(milestone) {
           );
 
         renderMilestones();
-        notifyChronicleOfOfficeRecordChange();
+        emitMilestoneChanged({
+          action: "delete",
+          milestoneId: milestone.id
+        });
       } catch (error) {
         window.alert(error.message);
         deleteButton.disabled = false;
@@ -1461,7 +1478,11 @@ taskForm.addEventListener(
 
       closeTaskDialog();
       await refreshOrderPlanner();
-      notifyChronicleOfOfficeRecordChange();
+      emitOrderChanged({
+        action:
+          editingTaskId ? "edit" : "create",
+        orderId: payload.task.id
+      });
     } catch (error) {
       window.alert(error.message);
     } finally {
@@ -1541,7 +1562,11 @@ milestoneForm.addEventListener(
       }
 
       renderMilestones();
-      notifyChronicleOfOfficeRecordChange();
+      emitMilestoneChanged({
+        action:
+          editingMilestoneId ? "edit" : "create",
+        milestoneId: payload.milestone.id
+      });
       closeMilestoneDialog();
     } catch (error) {
       window.alert(error.message);
@@ -1576,5 +1601,20 @@ milestoneDialog.addEventListener(
   }
 );
 
+officeManorEvents?.on(
+  officeManorEvents.names.PROJECT_CHANGED,
+  () => {
+    refreshEstateOffice().catch(console.error);
+  }
+);
+
+if (window.Manor?.features) {
+  window.Manor.features.estateOffice =
+    Object.freeze({
+      refresh: refreshEstateOffice
+    });
+}
+
+// Compatibility shim for shell startup. New cross-feature refreshes use Manor events.
 window.refreshEstateOffice =
   refreshEstateOffice;
