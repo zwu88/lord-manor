@@ -131,7 +131,7 @@
         <p class="label">The Estate Office</p>
         <h2>Orders and Milestones</h2>
         <p class="section-description">
-          Prepare tomorrow's duties and govern the principal
+          Plan dated duties and govern the principal
           checkpoints of the manor's projects.
         </p>
       </div>
@@ -140,10 +140,10 @@
         <section class="office-panel">
           <div class="office-panel-heading">
             <div>
-              <p class="label">Tomorrow's orders</p>
-              <h3>Next-Day Tasks</h3>
+              <p class="label">Order Planner</p>
+              <h3 id="planner-heading">Orders for Tomorrow</h3>
               <p
-                id="tomorrow-date"
+                id="planner-date-label"
                 class="office-date"
               ></p>
             </div>
@@ -155,18 +155,100 @@
               Add an Order
             </button>
           </div>
+
+          <div
+            class="planner-controls"
+            aria-label="Order Planner date controls"
+          >
+            <button
+              id="planner-previous-day"
+              class="secondary-button"
+              type="button"
+            >
+              Previous Day
+            </button>
+
+            <label
+              class="planner-date-input-label"
+              for="planner-date-input"
+            >
+              Planner date
+              <input
+                id="planner-date-input"
+                type="date"
+              >
+            </label>
+
+            <button
+              id="planner-today-button"
+              class="secondary-button"
+              type="button"
+            >
+              Today
+            </button>
+
+            <button
+              id="planner-tomorrow-button"
+              class="secondary-button"
+              type="button"
+            >
+              Tomorrow
+            </button>
+
+            <button
+              id="planner-next-day"
+              class="secondary-button"
+              type="button"
+            >
+              Next Day
+            </button>
+          </div>
+
+          <div
+            id="planner-week"
+            class="planner-week"
+            aria-label="Coming seven days"
+          ></div>
+
+          <p
+            id="planner-error"
+            class="office-error"
+            role="status"
+            hidden
+          ></p>
     
           <p
             id="empty-tasks"
             class="office-empty"
           >
-            No orders have been prepared for tomorrow.
+            No Orders remain for this date.
           </p>
     
           <div
             id="tomorrow-task-list"
             class="office-list"
           ></div>
+
+          <section
+            class="overdue-orders-section"
+            aria-labelledby="overdue-orders-heading"
+          >
+            <h4 id="overdue-orders-heading">
+              Overdue Orders
+            </h4>
+
+            <p
+              id="empty-overdue-tasks"
+              class="office-empty"
+            >
+              No overdue Orders require attention.
+            </p>
+
+            <div
+              id="overdue-task-list"
+              class="office-list"
+            ></div>
+          </section>
         </section>
     
         <section class="office-panel">
@@ -912,10 +994,6 @@
           <h2 id="task-dialog-title">
             Prepare Tomorrow's Order
           </h2>
-          <p
-            id="task-dialog-date"
-            class="dialog-date"
-          ></p>
         </div>
   
         <button
@@ -927,6 +1005,22 @@
           ×
         </button>
       </div>
+
+      <label>
+        Scheduled date
+        <input
+          id="task-date"
+          type="date"
+          required
+        >
+      </label>
+
+      <p
+        id="task-date-error"
+        class="form-error"
+        role="alert"
+        hidden
+      ></p>
   
       <label>
         Task

@@ -105,21 +105,6 @@
       "#chronicle-record-heading"
     );
 
-  const recentIssueList =
-    document.querySelector(
-      "#recent-issue-list"
-    );
-
-  const officeTaskList =
-    document.querySelector(
-      "#tomorrow-task-list"
-    );
-
-  const officeMilestoneList =
-    document.querySelector(
-      "#milestone-list"
-    );
-
   const requiredElements = [
     manorApplication,
     currentDateElement,
@@ -159,7 +144,6 @@
   const STORAGE_UNAVAILABLE_CODE =
     "CHRONICLE_EDITION_STORAGE_UNAVAILABLE";
 
-  let refreshTimer = null;
   let selectedDate = getLocalDateString();
   let todayDate = selectedDate;
   let currentMode = "loading";
@@ -1046,7 +1030,12 @@
     }
   }
 
+  function cancelPendingChronicleLoads() {
+    requestSequence += 1;
+  }
+
   async function refreshPreview() {
+    cancelPendingChronicleLoads();
     refreshButton.disabled = true;
     refreshButton.textContent =
       "Opening Preview...";
@@ -1068,7 +1057,7 @@
   async function sealEdition() {
     const previousMode = currentMode;
 
-    window.clearTimeout(refreshTimer);
+    cancelPendingChronicleLoads();
     currentMode = "loading";
     sealButton.disabled = true;
     sealButton.textContent =
@@ -1114,7 +1103,7 @@
 
     const previousMode = currentMode;
 
-    window.clearTimeout(refreshTimer);
+    cancelPendingChronicleLoads();
     currentMode = "loading";
     regenerateButton.disabled = true;
     regenerateButton.textContent =
@@ -1147,30 +1136,6 @@
         "Regenerate Edition";
       setButtonState();
     }
-  }
-
-  function scheduleRefresh() {
-    window.clearTimeout(
-      refreshTimer
-    );
-
-    refreshTimer =
-      window.setTimeout(
-        () => {
-          if (
-            currentMode === "live" &&
-            selectedDate === todayDate
-          ) {
-            loadEditionOrLive(
-              selectedDate,
-              {
-                forceLive: true
-              }
-            ).catch(console.error);
-          }
-        },
-        120
-      );
   }
 
   function initializeChronicle() {
@@ -1300,27 +1265,6 @@
       attributeFilter: ["hidden"]
     }
   );
-
-  const contentObserver =
-    new MutationObserver(
-      scheduleRefresh
-    );
-
-  for (const element of [
-    recentIssueList,
-    officeTaskList,
-    officeMilestoneList
-  ]) {
-    if (element) {
-      contentObserver.observe(
-        element,
-        {
-          childList: true,
-          subtree: true
-        }
-      );
-    }
-  }
 
   setButtonState();
 

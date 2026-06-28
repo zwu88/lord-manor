@@ -78,6 +78,269 @@ test("shows only active tomorrow Orders in the planning list", async ({ page }) 
   await expect(taskList.getByRole("button", { name: "Done Today" })).toHaveCount(2);
 });
 
+test("defaults the Order Planner to tomorrow with a seven-day summary", async ({ page }) => {
+  const fixture = await openManor(page);
+
+  await expect(page.locator("#planner-heading")).toHaveText("Orders for Tomorrow");
+  await expect(page.locator("#planner-date-input")).toHaveValue(fixture.tomorrow);
+  await expect(page.locator("#planner-week .planner-day")).toHaveCount(7);
+  await expect(
+    page.locator("#planner-week .planner-day").filter({ hasText: "0 Orders" })
+  ).toHaveCount(3);
+  await expect(
+    page.locator("#planner-week .planner-day").filter({ hasText: "Tomorrow" })
+  ).toHaveCount(0);
+  await expect(
+    page.locator(`#planner-week .planner-day[data-date="${fixture.tomorrow}"]`)
+  ).toHaveAttribute("aria-current", "date");
+  await expect(page.locator("#tomorrow-task-list")).toContainText(
+    "Prepare browser smoke review"
+  );
+  await expect(page.locator("#tomorrow-task-list")).not.toContainText(
+    "Completed early tomorrow order"
+  );
+});
+
+test("navigates Order Planner dates and avoids stale selected-day responses", async ({ page }) => {
+  const fixture = await openManor(page);
+  const dayThree = addDays(fixture.today, 3);
+
+  await page.getByRole("button", { name: "Previous Day" }).first().click();
+  await expect(page.locator("#planner-date-input")).toHaveValue(fixture.today);
+  await expect(page.locator("#tomorrow-task-list")).toContainText("Read the morning orders");
+
+  await page.getByRole("button", { name: "Next Day" }).first().click();
+  await expect(page.locator("#planner-date-input")).toHaveValue(fixture.tomorrow);
+
+  await page.getByRole("button", { name: "Today" }).first().click();
+  await expect(page.locator("#planner-date-input")).toHaveValue(fixture.today);
+
+  await page.getByRole("button", { name: "Tomorrow" }).click();
+  await expect(page.locator("#planner-date-input")).toHaveValue(fixture.tomorrow);
+
+  await page.locator("#planner-date-input").evaluate((input, value) => {
+    input.value = value;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, dayThree);
+  await expect(page.locator("#planner-date-input")).toHaveValue(dayThree);
+  await expect(page.locator("#tomorrow-task-list")).toContainText("Prepare third-day order");
+
+  await Promise.all([
+    page.locator(`#planner-week .planner-day[data-date="${fixture.today}"]`).click(),
+    page.locator(`#planner-week .planner-day[data-date="${fixture.tomorrow}"]`).click()
+  ]);
+  await expect(page.locator("#planner-date-input")).toHaveValue(fixture.tomorrow);
+  await expect(page.locator("#tomorrow-task-list")).toContainText(
+    "Prepare browser smoke review"
+  );
+});
+
+test("creates and reschedules Orders through the dated planner", async ({ page }) => {
+  const fixture = await openManor(page);
+  const dayThree = addDays(fixture.today, 3);
+  const dayFive = addDays(fixture.today, 5);
+  const taskRequests = [];
+
+  page.on("request", request => {
+    const url = new URL(request.url());
+
+    if (url.pathname === "/api/tasks" && ["POST", "PUT"].includes(request.method())) {
+      taskRequests.push({
+        method: request.method(),
+        body: JSON.parse(request.postData() || "{}")
+      });
+    }
+  });
+
+  await page.locator(`#planner-week .planner-day[data-date="${dayThree}"]`).click();
+  await page.getByRole("button", { name: "Add an Order" }).click();
+  await expect(page.locator("#task-date")).toHaveValue(dayThree);
+  await page.locator("#task-title").fill("New dated planner order");
+  await page.locator("#task-description").fill("Created for a selected future date.");
+  await page.getByRole("button", { name: "Seal the Order" }).click();
+
+  await expect(page.locator("#task-dialog")).toBeHidden();
+  await expect(page.locator("#tomorrow-task-list")).toContainText("New dated planner order");
+  expect(taskRequests.at(-1)).toMatchObject({
+    method: "POST",
+    body: {
+      taskDate: dayThree,
+      title: "New dated planner order"
+    }
+  });
+  expect(taskRequests.at(-1).body).not.toHaveProperty("completedAt");
+
+  await page
+    .locator("#tomorrow-task-list .office-card")
+    .filter({ hasText: "New dated planner order" })
+    .getByRole("button", { name: "Edit" })
+    .click();
+  await page.locator("#task-date").fill(dayFive);
+  await page.getByRole("button", { name: "Save the Amendment" }).click();
+  await expect(page.locator("#tomorrow-task-list")).not.toContainText(
+    "New dated planner order"
+  );
+  expect(taskRequests.at(-1)).toMatchObject({
+    method: "PUT",
+    body: {
+      taskDate: dayFive,
+      title: "New dated planner order"
+    }
+  });
+  expect(taskRequests.at(-1).body).not.toHaveProperty("completedAt");
+  expect(taskRequests.at(-1).body).not.toHaveProperty("completed");
+
+  await page.locator(`#planner-week .planner-day[data-date="${dayFive}"]`).click();
+  await expect(page.locator("#tomorrow-task-list")).toContainText("New dated planner order");
+});
+
+test("prevents ordinary creation for a past planner date", async ({ page }) => {
+  const fixture = await openManor(page);
+  const pastDate = addDays(fixture.today, -3);
+
+  await page.locator("#planner-date-input").evaluate((input, value) => {
+    input.value = value;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, pastDate);
+  await expect(page.locator("#tomorrow-task-list")).toContainText("Overdue archive review");
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Add an Order" }).click();
+  await expect(page.locator("#task-date")).toHaveValue(pastDate);
+  await page.locator("#task-title").fill("Invalid past order");
+  await page.getByRole("button", { name: "Seal the Order" }).click();
+  await expect(page.locator("#task-dialog")).toBeVisible();
+  await expect(page.locator("#task-date-error")).toContainText(
+    "today or a future date"
+  );
+});
+
+test("renders and reschedules overdue Orders without duplicate selected-day cards", async ({ page }) => {
+  const fixture = await openManor(page);
+  const overdueDate = addDays(fixture.today, -3);
+
+  await expect(page.locator("#overdue-task-list")).toContainText("Overdue archive review");
+  await expect(page.locator("#overdue-task-list")).toContainText("Overdue garden note");
+  await expect(page.locator("#overdue-task-list")).not.toContainText("Completed historical order");
+
+  await page.locator("#planner-date-input").evaluate((input, value) => {
+    input.value = value;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, overdueDate);
+  await expect(page.locator("#tomorrow-task-list")).toContainText("Overdue archive review");
+  await expect(page.locator("#overdue-task-list")).not.toContainText("Overdue archive review");
+
+  await page
+    .locator("#tomorrow-task-list .office-card")
+    .filter({ hasText: "Overdue archive review" })
+    .getByRole("button", { name: "Edit" })
+    .click();
+  await page.locator("#task-date").fill(fixture.today);
+  await page.getByRole("button", { name: "Save the Amendment" }).click();
+  await expect(page.locator("#tomorrow-task-list")).not.toContainText("Overdue archive review");
+
+  await page.getByRole("button", { name: "Today" }).first().click();
+  await expect(page.locator("#tomorrow-task-list")).toContainText("Overdue archive review");
+  await expect(page.locator("#overdue-task-list")).not.toContainText("Overdue archive review");
+});
+
+test("rescheduling an Order refreshes a live Chronicle reconstruction", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
+
+  const liveFixture = await openManor(page, { noTodayEdition: true });
+  await expect(page.locator("#chronicle-edition-status")).toHaveText(
+    "Unsealed Reconstruction"
+  );
+  await expect(page.locator("#chronicle-task-list")).toContainText(
+    "Read the morning orders"
+  );
+
+  await page.getByRole("button", { name: "Today" }).first().click();
+  await page
+    .locator("#tomorrow-task-list .office-card")
+    .filter({ hasText: "Read the morning orders" })
+    .getByRole("button", { name: "Edit" })
+    .click();
+  await page.locator("#task-date").fill(liveFixture.tomorrow);
+  await page.getByRole("button", { name: "Save the Amendment" }).click();
+  await expect(page.locator("#chronicle-task-list")).not.toContainText(
+    "Read the morning orders"
+  );
+});
+
+test("rescheduling an Order preserves a sealed Chronicle until regeneration", async ({ page }) => {
+  const sealedFixture = await openManor(page);
+  await expect(page.locator("#chronicle-edition-status")).toHaveText("Sealed Edition");
+  await expect(page.locator("#chronicle-task-list")).toContainText(
+    "Read the morning orders"
+  );
+
+  await page.getByRole("button", { name: "Today" }).first().click();
+  await page
+    .locator("#tomorrow-task-list .office-card")
+    .filter({ hasText: "Read the morning orders" })
+    .getByRole("button", { name: "Edit" })
+    .click();
+  await page.locator("#task-date").fill(sealedFixture.tomorrow);
+  await page.getByRole("button", { name: "Save the Amendment" }).click();
+  await expect(page.locator("#chronicle-task-list")).toContainText(
+    "Read the morning orders"
+  );
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Regenerate Edition" }).click();
+  await expect(page.locator("#chronicle-task-list")).not.toContainText(
+    "Read the morning orders"
+  );
+});
+
+test("updates planner lists after Done Today and Delete actions", async ({ page }) => {
+  const fixture = await openManor(page);
+  const originalCount = fixture.data.tasks.length;
+
+  page.once("dialog", dialog => dialog.accept());
+  await page
+    .locator("#tomorrow-task-list .office-card")
+    .filter({ hasText: "Prepare browser smoke review" })
+    .getByRole("button", { name: "Done Today" })
+    .click();
+  await expect(page.locator("#tomorrow-task-list")).not.toContainText(
+    "Prepare browser smoke review"
+  );
+  expect(fixture.data.tasks).toHaveLength(originalCount);
+  expect(fixture.data.tasks.find(task => task.id === "task-tomorrow-1").completed).toBe(
+    true
+  );
+
+  page.once("dialog", dialog => dialog.accept());
+  await page
+    .locator("#overdue-task-list .office-card")
+    .filter({ hasText: "Overdue garden note" })
+    .getByRole("button", { name: "Delete" })
+    .click();
+  await expect(page.locator("#overdue-task-list")).not.toContainText("Overdue garden note");
+  expect(fixture.data.tasks).toHaveLength(originalCount - 1);
+});
+
+test("keeps planner data visible and controls recover after API failures", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*500/);
+
+  const fixture = await openManor(page);
+  fixture.state.plannerStatus = 500;
+  fixture.state.plannerError = "Planner fixture failure.";
+
+  await page.getByRole("button", { name: "Next Day" }).first().click();
+  await expect(page.locator("#planner-error")).toContainText("Planner fixture failure.");
+  await expect(page.locator("#tomorrow-task-list")).toContainText(
+    "Prepare browser smoke review"
+  );
+  await expect(page.getByRole("button", { name: "Next Day" }).first()).toBeEnabled();
+
+  fixture.state.plannerStatus = null;
+  await page.getByRole("button", { name: "Next Day" }).first().click();
+  await expect(page.locator("#planner-error")).toBeHidden();
+});
+
 test("marks a tomorrow Order done today without a page reload", async ({ page }) => {
   const fixture = await openManor(page);
   const mainFrame = page.mainFrame();
@@ -189,7 +452,7 @@ test("shows the active tomorrow empty state after the final Order is done", asyn
 
   await expect(page.locator("#empty-tasks")).toBeVisible();
   await expect(page.locator("#empty-tasks")).toHaveText(
-    "No Orders remain for tomorrow."
+    "No Orders remain for this date."
   );
 });
 
@@ -519,14 +782,49 @@ test("shows duplicate seal conflicts without getting stuck", async ({ page }) =>
   page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
   page.errorMonitor.allowConsoleError(/Failed to load resource:.*409/);
 
-  await openManor(page, {
+  const fixture = await openManor(page, {
     noTodayEdition: true,
     sealConflict: true
   });
+  const liveRequests = [];
+  const postedBodies = [];
 
   await expect(page.locator("#chronicle-edition-status")).toHaveText(
     "Unsealed Reconstruction"
   );
+  await expect(page.getByRole("button", { name: "Seal Edition" })).toBeEnabled();
+
+  page.on("request", request => {
+    const url = new URL(request.url());
+
+    if (url.pathname === "/api/chronicle") {
+      liveRequests.push(url.search);
+    }
+
+    if (
+      url.pathname === "/api/chronicle-editions" &&
+      request.method() === "POST"
+    ) {
+      postedBodies.push(JSON.parse(request.postData() || "{}"));
+    }
+  });
+
+  await Promise.all([
+    page.waitForResponse(response => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/order-planner" &&
+        url.searchParams.get("date") === fixture.today &&
+        response.status() === 200
+      );
+    }),
+    page.getByRole("button", { name: "Today" }).first().click()
+  ]);
+  await expect(page.locator("#tomorrow-task-list")).toContainText(
+    "Read the morning orders"
+  );
+
   await Promise.all([
     page.waitForResponse(response => {
       const request = response.request();
@@ -541,6 +839,8 @@ test("shows duplicate seal conflicts without getting stuck", async ({ page }) =>
     page.getByRole("button", { name: "Seal Edition" }).click()
   ]);
 
+  expect(postedBodies).toEqual([{ date: fixture.today }]);
+  expect(liveRequests).toEqual([]);
   await expect(page.locator("#chronicle-edition-error")).toContainText(
     "already been sealed"
   );
@@ -556,9 +856,9 @@ test("keeps sealed editions immutable until regeneration", async ({ page }) => {
   fixture.data.issues[0].title = "Changed live issue";
   fixture.data.issues[0].description = "Changed after the edition was sealed.";
 
-  await page.getByRole("button", { name: "Previous Day" }).click();
+  await page.locator("#chronicle-previous-day").click();
   await expect(page.locator("#chronicle-headline")).toHaveText("Previous Sealed Edition");
-  await page.getByRole("button", { name: "Next Day" }).click();
+  await page.locator("#chronicle-next-day").click();
   await expect(page.locator("#chronicle-headline")).toHaveText("Sealed Fixture Edition");
   await expect(page.locator("#chronicle-issue-list")).toContainText("Smoke test fixture issue");
   await expect(page.locator("#chronicle-issue-list")).not.toContainText("Changed live issue");
@@ -590,8 +890,8 @@ test("regenerates a version-2 edition with active-only Orders and preserved seal
       : task
   );
 
-  await page.getByRole("button", { name: "Previous Day" }).click();
-  await page.getByRole("button", { name: "Next Day" }).click();
+  await page.locator("#chronicle-previous-day").click();
+  await page.locator("#chronicle-next-day").click();
   await expect(page.locator("#chronicle-task-list")).toContainText(
     "Read the morning orders"
   );
@@ -615,7 +915,7 @@ test("regenerates a version-2 edition with active-only Orders and preserved seal
 test("keeps legacy version-1 edition statuses readable and upgrades on regeneration", async ({ page }) => {
   const fixture = await openManor(page);
 
-  await page.getByRole("button", { name: "Previous Day" }).click();
+  await page.locator("#chronicle-previous-day").click();
   await expect(page.locator("#chronicle-headline")).toHaveText("Previous Sealed Edition");
   await expect(page.locator("#chronicle-task-list")).toContainText("Archived pending order");
   await expect(page.locator("#chronicle-task-list")).toContainText("Archived completed order");
@@ -649,17 +949,17 @@ test("navigates dated Chronicle editions and blocks future dates", async ({ page
     }
   });
 
-  await page.getByRole("button", { name: "Previous Day" }).click();
+  await page.locator("#chronicle-previous-day").click();
   await expect(page.locator("#chronicle-edition-status")).toHaveText("Sealed Edition");
   await expect(page.locator("#chronicle-headline")).toHaveText("Previous Sealed Edition");
   await expect(page.locator("#chronicle-orders-heading")).toHaveText("Orders of the Day");
   await expect(page.locator("#chronicle-record-heading")).toHaveText("Record of the Day");
   await expect(page.locator("#chronicle-task-list")).toContainText("Archived pending order");
-  await expect(page.getByRole("button", { name: "Next Day" })).toBeEnabled();
+  await expect(page.locator("#chronicle-next-day")).toBeEnabled();
 
-  await page.getByRole("button", { name: "Next Day" }).click();
+  await page.locator("#chronicle-next-day").click();
   await expect(page.locator("#chronicle-edition-select")).toHaveValue(fixture.today);
-  await expect(page.getByRole("button", { name: "Next Day" })).toBeDisabled();
+  await expect(page.locator("#chronicle-next-day")).toBeDisabled();
 
   await page.locator("#chronicle-date-input").evaluate((input, value) => {
     input.value = value;
@@ -729,10 +1029,10 @@ test("surfaces Chronicle edition API failures and keeps controls recoverable", a
   await expect(page.locator("#chronicle-edition-error")).toHaveText(
     "Edition fixture failure."
   );
-  await expect(page.getByRole("button", { name: "Previous Day" })).toBeEnabled();
+  await expect(page.locator("#chronicle-previous-day")).toBeEnabled();
 
   fixture.state.editionStatus = null;
-  await page.getByRole("button", { name: "Previous Day" }).click();
+  await page.locator("#chronicle-previous-day").click();
   await expect(page.locator("#chronicle-headline")).toHaveText("Previous Sealed Edition");
 });
 

@@ -122,6 +122,78 @@ function createInitialData() {
         completedAt: `${TODAY}T07:45:00.000Z`,
         createdAt: `${TODAY}T06:38:00.000Z`,
         updatedAt: `${TODAY}T07:45:00.000Z`
+      },
+      {
+        id: "task-day-three-1",
+        taskDate: addDays(TODAY, 3),
+        title: "Prepare third-day order",
+        description: "A future planner order.",
+        projectId: project.id,
+        projectName: project.name,
+        completed: false,
+        completedAt: null,
+        createdAt: `${TODAY}T06:50:00.000Z`,
+        updatedAt: `${TODAY}T06:50:00.000Z`
+      },
+      {
+        id: "task-day-five-1",
+        taskDate: addDays(TODAY, 5),
+        title: "Review fifth-day supplies",
+        description: "A future order without a project.",
+        projectId: null,
+        projectName: null,
+        completed: false,
+        completedAt: null,
+        createdAt: `${TODAY}T06:55:00.000Z`,
+        updatedAt: `${TODAY}T06:55:00.000Z`
+      },
+      {
+        id: "task-future-completed-1",
+        taskDate: addDays(TODAY, 4),
+        title: "Completed future order",
+        description: "Excluded from planner counts.",
+        projectId: project.id,
+        projectName: project.name,
+        completed: true,
+        completedAt: `${TODAY}T08:00:00.000Z`,
+        createdAt: `${TODAY}T07:00:00.000Z`,
+        updatedAt: `${TODAY}T08:00:00.000Z`
+      },
+      {
+        id: "task-overdue-1",
+        taskDate: addDays(TODAY, -3),
+        title: "Overdue archive review",
+        description: "An overdue active order.",
+        projectId: project.id,
+        projectName: project.name,
+        completed: false,
+        completedAt: null,
+        createdAt: `${TODAY}T05:00:00.000Z`,
+        updatedAt: `${TODAY}T05:00:00.000Z`
+      },
+      {
+        id: "task-overdue-2",
+        taskDate: addDays(TODAY, -1),
+        title: "Overdue garden note",
+        description: "An overdue active order without a project.",
+        projectId: null,
+        projectName: null,
+        completed: false,
+        completedAt: null,
+        createdAt: `${TODAY}T05:30:00.000Z`,
+        updatedAt: `${TODAY}T05:30:00.000Z`
+      },
+      {
+        id: "task-overdue-completed-1",
+        taskDate: addDays(TODAY, -2),
+        title: "Completed historical order",
+        description: "Excluded from overdue planner views.",
+        projectId: project.id,
+        projectName: project.name,
+        completed: true,
+        completedAt: `${TODAY}T08:15:00.000Z`,
+        createdAt: `${TODAY}T05:45:00.000Z`,
+        updatedAt: `${TODAY}T08:15:00.000Z`
       }
     ],
     milestones: [
@@ -418,6 +490,100 @@ function buildChronicleResponse(data, date) {
     milestones,
     statistics,
     formatVersion: CHRONICLE_FORMAT_VERSION
+  };
+}
+
+function activeTasksForDate(data, date) {
+  return clone(
+    data.tasks
+      .filter(
+        task =>
+          task.taskDate === date &&
+          !normalizeBoolean(task.completed)
+      )
+      .sort((first, second) => {
+        const createdDifference =
+          String(first.createdAt || "")
+            .localeCompare(
+              String(second.createdAt || "")
+            );
+
+        if (createdDifference !== 0) {
+          return createdDifference;
+        }
+
+        return first.id.localeCompare(second.id);
+      })
+  );
+}
+
+function buildOrderPlannerResponse(
+  data,
+  selectedDate,
+  today
+) {
+  const tomorrow = addDays(today, 1);
+  const week = Array.from(
+    { length: 7 },
+    (_, index) => {
+      const date = addDays(today, index);
+      const activeCount =
+        data.tasks.filter(
+          task =>
+            task.taskDate === date &&
+            !normalizeBoolean(task.completed)
+        ).length;
+
+      return {
+        date,
+        activeCount
+      };
+    }
+  );
+
+  const overdueOrders = clone(
+    data.tasks
+      .filter(
+        task =>
+          task.taskDate < today &&
+          task.taskDate !== selectedDate &&
+          !normalizeBoolean(task.completed)
+      )
+      .sort((first, second) => {
+        const dateDifference =
+          first.taskDate.localeCompare(
+            second.taskDate
+          );
+
+        if (dateDifference !== 0) {
+          return dateDifference;
+        }
+
+        const createdDifference =
+          String(first.createdAt || "")
+            .localeCompare(
+              String(second.createdAt || "")
+            );
+
+        if (createdDifference !== 0) {
+          return createdDifference;
+        }
+
+        return first.id.localeCompare(second.id);
+      })
+      .slice(0, 100)
+  );
+
+  return {
+    selectedDate,
+    today,
+    tomorrow,
+    weekStart: today,
+    weekEnd: addDays(today, 6),
+    selectedOrders:
+      activeTasksForDate(data, selectedDate),
+    overdueOrders,
+    week
   };
 }
 
@@ -923,6 +1089,46 @@ async function handleApi(route, data, state) {
     );
   }
 
+  if (path === "/api/order-planner") {
+    if (state.plannerStatus) {
+      return json(
+        route,
+        {
+          error:
+            state.plannerError ||
+            "Could not open the Order Planner."
+        },
+        state.plannerStatus
+      );
+    }
+
+    const date = url.searchParams.get("date");
+    const today = url.searchParams.get("today");
+
+    if (
+      !isValidDateString(date) ||
+      !isValidDateString(today)
+    ) {
+      return json(
+        route,
+        {
+          error:
+            "Valid selected and local today dates are required."
+        },
+        400
+      );
+    }
+
+    return json(
+      route,
+      buildOrderPlannerResponse(
+        data,
+        date,
+        today
+      )
+    );
+  }
+
   if (path === "/api/issues") {
     return handleCollection(route, request, data, "issues", "issue");
   }
@@ -979,6 +1185,10 @@ async function installMockApi(page, options = {}) {
       options.taskPutStatus || null,
     taskPutError:
       options.taskPutError || null,
+    plannerStatus:
+      options.plannerStatus || null,
+    plannerError:
+      options.plannerError || null,
     editions: null
   };
 
