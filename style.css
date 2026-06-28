@@ -999,7 +999,7 @@ dialog::backdrop {
   resize: vertical;
 }
 
-@media (max-width: 900px) {
+@media (min-width: 601px) and (max-width: 900px) {
   .estate-office-grid {
     grid-template-columns: 1fr;
   }
@@ -1386,6 +1386,145 @@ dialog::backdrop {
   background: var(--muted);
 }
 
+.weekly-report {
+  margin-bottom: 54px;
+  padding-bottom: 36px;
+  border-bottom: 2px solid var(--border);
+}
+
+.weekly-report-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 0 0 20px;
+  padding: 20px;
+  background: rgba(248, 243, 229, 0.72);
+  border: 1px solid var(--border);
+}
+
+.weekly-report-date-label {
+  display: grid;
+  gap: 6px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.weekly-report-date-label input {
+  min-width: 180px;
+  padding: 10px 11px;
+  color: var(--ink);
+  background: white;
+  border: 1px solid var(--border);
+  font: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.weekly-report-controls button,
+#weekly-report-print {
+  padding: 10px 13px;
+  font-size: 0.84rem;
+}
+
+.weekly-report-status-panel {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 18px;
+}
+
+.weekly-report-status {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.weekly-report-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 0 0 24px;
+}
+
+.weekly-report-summary-card,
+.weekly-report-highlight,
+.weekly-report-day,
+.weekly-report-record {
+  padding: 16px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+}
+
+.weekly-report-summary-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.35rem;
+}
+
+.weekly-report-narrative {
+  margin-bottom: 28px;
+}
+
+.weekly-report-narrative h3,
+.weekly-report-section h3 {
+  margin: 0 0 12px;
+  color: var(--ink);
+}
+
+.weekly-report-highlights,
+.weekly-report-list {
+  display: grid;
+  gap: 12px;
+}
+
+.weekly-report-highlight {
+  line-height: 1.45;
+}
+
+.weekly-report-daily {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+.weekly-report-day h4,
+.weekly-report-record h4 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.weekly-report-day p,
+.weekly-report-record p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.weekly-report-day.is-future {
+  background: transparent;
+}
+
+.weekly-report-muted {
+  font-style: italic;
+}
+
+.weekly-report-section {
+  margin: 28px 0 0;
+}
+
+.weekly-report-council {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
 .chronicle-lead {
   margin-top: 0;
   padding-bottom: 22px;
@@ -1526,6 +1665,28 @@ dialog::backdrop {
 }
 
 @media (max-width: 600px) {
+  .weekly-report .heading-with-action {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .weekly-report-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .weekly-report-controls button,
+  .weekly-report-date-label input,
+  #weekly-report-print {
+    width: 100%;
+  }
+
+  .weekly-report-summary,
+  .weekly-report-daily,
+  .weekly-report-council {
+    grid-template-columns: 1fr;
+  }
+
   .chronicle .heading-with-action {
     align-items: flex-start;
     flex-direction: column;
@@ -1542,5 +1703,82 @@ dialog::backdrop {
   .chronicle-archive-label select,
   .chronicle-controls button {
     width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  .weekly-report-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .weekly-report-daily {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media print {
+  body {
+    color: #000;
+    background: white;
+  }
+
+  .manor-header,
+  .welcome-panel,
+  .region-grid,
+  #login-screen,
+  #manor-home,
+  #department-back-button,
+  #department-page > header,
+  #operational-department-view,
+  #council-department-view,
+  #treasury-department-view,
+  #chronicle-department-view > .section-heading,
+  #empty-issues,
+  #issue-list,
+  footer,
+  .weekly-report-controls,
+  #weekly-report-print {
+    display: none !important;
+  }
+
+  main {
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  #department-page,
+  #chronicle-department-view,
+  #weekly-estate-report {
+    display: block !important;
+  }
+
+  .weekly-report {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .weekly-report-summary,
+  .weekly-report-daily {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .weekly-report-council {
+    grid-template-columns: 1fr;
+  }
+
+  .weekly-report-summary-card,
+  .weekly-report-highlight,
+  .weekly-report-day,
+  .weekly-report-record {
+    background: white;
+    border-color: #999;
+    break-inside: avoid;
+  }
+
+  .weekly-report-section,
+  .weekly-report-narrative {
+    break-inside: avoid;
   }
 }

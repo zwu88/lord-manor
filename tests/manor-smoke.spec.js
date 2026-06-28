@@ -25,6 +25,39 @@ async function openManor(page, options = {}) {
   return fixture;
 }
 
+async function setBrowserToday(page, dateString) {
+  await page.addInitScript(date => {
+    const RealDate = Date;
+    const fixedTime =
+      new RealDate(`${date}T12:00:00`).getTime();
+
+    class MockDate extends RealDate {
+      constructor(...args) {
+        if (args.length === 0) {
+          super(fixedTime);
+          return;
+        }
+
+        super(...args);
+      }
+
+      static now() {
+        return fixedTime;
+      }
+
+      static parse(value) {
+        return RealDate.parse(value);
+      }
+
+      static UTC(...args) {
+        return RealDate.UTC(...args);
+      }
+    }
+
+    window.Date = MockDate;
+  }, dateString);
+}
+
 test.beforeEach(async ({ page }) => {
   page.errorMonitor = installErrorMonitor(page);
 });
@@ -1034,6 +1067,218 @@ test("surfaces Chronicle edition API failures and keeps controls recoverable", a
   fixture.state.editionStatus = null;
   await page.locator("#chronicle-previous-day").click();
   await expect(page.locator("#chronicle-headline")).toHaveText("Previous Sealed Edition");
+});
+
+test("loads the current partial Weekly Estate Report", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*404/);
+
+  await setBrowserToday(page, "2026-06-25");
+  const fixture = await installMockApi(page, {
+    authenticated: true
+  });
+
+  await page.goto("/");
+  await expect(page.locator("#manor-application")).toBeVisible();
+  await expect(page.locator("#recent-issue-list .issue-card")).toHaveCount(2);
+
+  expect(fixture.state.weeklyReportRequests).toBe(0);
+
+  await page.getByRole("link", { name: /The Chronicle Department/ }).click();
+
+  await expect(page.locator("#weekly-report-status")).toHaveText(
+    "Week in Progress"
+  );
+  await expect(page.locator("#weekly-report-range")).toContainText("Jun 22, 2026");
+  await expect(page.locator("#weekly-report-range")).toContainText("Jun 28, 2026");
+  await expect(page.locator("#weekly-report-summary")).toContainText(
+    "Recorded Issues"
+  );
+  await expect(page.locator("#weekly-report-summary")).toContainText(
+    "Active Departments"
+  );
+  await expect(page.locator("#weekly-report-headline")).toContainText(
+    "Led the Week"
+  );
+  await expect(page.locator("#weekly-report-lead")).toContainText(
+    "The manor recorded"
+  );
+  await expect(page.locator("#weekly-report-daily .weekly-report-day")).toHaveCount(7);
+  await expect(page.locator("#weekly-report-daily")).toContainText("Not yet reported");
+  await expect(page.locator("#weekly-report-daily .is-future")).toHaveCount(3);
+  await expect(
+    page.locator("#weekly-report-departments .weekly-report-record h4").first()
+  ).toHaveText("The Research Institute");
+  await expect(page.locator("#weekly-report-projects")).toContainText(
+    "Codex Runtime Foundation"
+  );
+  await expect(page.locator("#weekly-report-projects")).not.toContainText(
+    "Unassigned"
+  );
+  await expect(page.locator("#weekly-report-completed-projects")).toContainText(
+    "Weekly Report Foundation"
+  );
+  await expect(page.locator("#weekly-report-completed-projects")).not.toContainText(
+    "Outside Report Range"
+  );
+  await expect(page.locator("#weekly-report-completed-milestones")).toContainText(
+    "No milestones were completed"
+  );
+});
+
+test("navigates Weekly Estate Report weeks, date input, and empty weeks", async ({ page }) => {
+  const fixture = await openManor(page);
+  const requestedDates = [];
+
+  page.on("request", request => {
+    const url = new URL(request.url());
+
+    if (url.pathname === "/api/weekly-report") {
+      requestedDates.push(url.searchParams.get("date"));
+    }
+  });
+
+  await page.getByRole("link", { name: /The Chronicle Department/ }).click();
+  await expect(page.locator("#weekly-report-status")).toHaveText(
+    "Week in Progress"
+  );
+  await expect(page.locator("#weekly-report-next")).toBeDisabled();
+
+  await page.locator("#weekly-report-previous").click();
+  await expect(page.locator("#weekly-report-status")).toHaveText("Complete Week");
+  await expect(page.locator("#weekly-report-next")).toBeEnabled();
+
+  await page.locator("#weekly-report-next").click();
+  await expect(page.locator("#weekly-report-status")).toHaveText(
+    "Week in Progress"
+  );
+  await expect(page.locator("#weekly-report-next")).toBeDisabled();
+
+  const beforeFutureAttempt = requestedDates.length;
+  await page.locator("#weekly-report-date").evaluate((input, value) => {
+    input.value = value;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, addDays(fixture.today, 7));
+  await expect(page.locator("#weekly-report-error")).toContainText(
+    "Choose this week or an earlier valid date."
+  );
+  expect(requestedDates).toHaveLength(beforeFutureAttempt);
+
+  await page.locator("#weekly-report-date").evaluate(input => {
+    input.value = "not-a-date";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(page.locator("#weekly-report-error")).toContainText(
+    "Choose this week or an earlier valid date."
+  );
+  expect(requestedDates).toHaveLength(beforeFutureAttempt);
+
+  await page.locator("#weekly-report-date").evaluate(input => {
+    input.value = "2026-05-05";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(page.locator("#weekly-report-status")).toHaveText("Complete Week");
+  await expect(page.locator("#weekly-report-headline")).toHaveText(
+    "A Quiet Week Across the Manor"
+  );
+  await expect(page.locator("#weekly-report-summary")).toContainText(
+    "Recorded Issues"
+  );
+  await expect(page.locator("#weekly-report-summary")).toContainText("0");
+  await expect(page.locator("#weekly-report-departments")).toContainText(
+    "No department activity"
+  );
+  await expect(page.locator("#weekly-report-projects")).toContainText(
+    "No recorded Issues were linked"
+  );
+});
+
+test("recovers Weekly Estate Report controls after API failures", async ({ page }) => {
+  page.errorMonitor.allowConsoleError(/Failed to load resource:.*500/);
+
+  const fixture = await openManor(page);
+  await page.getByRole("link", { name: /The Chronicle Department/ }).click();
+  await expect(page.locator("#weekly-report-headline")).not.toHaveText("");
+
+  const previousHeadline = await page
+    .locator("#weekly-report-headline")
+    .textContent();
+
+  fixture.state.weeklyReportStatus = 500;
+  fixture.state.weeklyReportError = "Weekly fixture failure.";
+
+  await page.locator("#weekly-report-refresh").click();
+  await expect(page.locator("#weekly-report-error")).toHaveText(
+    "Weekly fixture failure."
+  );
+  await expect(page.locator("#weekly-report-refresh")).toBeEnabled();
+  await expect(page.locator("#weekly-report-headline")).toHaveText(previousHeadline);
+});
+
+test("protects Weekly Estate Report against stale week responses", async ({ page }) => {
+  const testToday =
+    new Date().toISOString().slice(0, 10);
+  const fixture = await openManor(page, {
+    weeklyReportDelay: date => (date < testToday ? 250 : 0)
+  });
+
+  await page.getByRole("link", { name: /The Chronicle Department/ }).click();
+  await expect(page.locator("#weekly-report-status")).toHaveText(
+    "Week in Progress"
+  );
+
+  await Promise.all([
+    page.locator("#weekly-report-previous").click(),
+    page.locator("#weekly-report-this-week").click()
+  ]);
+
+  await expect(page.locator("#weekly-report-status")).toHaveText(
+    "Week in Progress"
+  );
+  await expect(page.locator("#weekly-report-next")).toBeDisabled();
+  expect(fixture.state.weeklyReportRequests).toBeGreaterThanOrEqual(2);
+});
+
+test("refreshes the visible Weekly Estate Report after Issue edits only", async ({ page }) => {
+  const fixture = await openManor(page);
+
+  await page.getByRole("link", { name: /The Chronicle Department/ }).click();
+  await expect(page.locator("#weekly-report-status")).toHaveText(
+    "Week in Progress"
+  );
+
+  const visibleRequestCount = fixture.state.weeklyReportRequests;
+  await page
+    .locator("#issue-list .issue-card")
+    .filter({ hasText: "Smoke test fixture issue" })
+    .getByRole("button", { name: "Edit" })
+    .click();
+  await page.locator("#issue-title").fill("Updated weekly report record");
+  await page.getByRole("button", { name: "Save the Amendment" }).click();
+
+  await expect(page.locator("#weekly-report-recent")).toContainText(
+    "Updated weekly report record"
+  );
+  expect(fixture.state.weeklyReportRequests).toBe(visibleRequestCount + 1);
+});
+
+test("prints the Weekly Estate Report on request", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__weeklyPrintCount = 0;
+    window.print = () => {
+      window.__weeklyPrintCount += 1;
+    };
+  });
+
+  await openManor(page);
+  await page.getByRole("link", { name: /The Chronicle Department/ }).click();
+  await expect(page.locator("#weekly-report-status")).toHaveText(
+    "Week in Progress"
+  );
+
+  await page.getByRole("button", { name: "Print Report" }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.__weeklyPrintCount))
+    .toBe(1);
 });
 
 test("navigates to a department and returns cleanly to the manor", async ({ page }) => {

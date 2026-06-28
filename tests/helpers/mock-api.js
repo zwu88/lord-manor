@@ -587,6 +587,419 @@ function buildOrderPlannerResponse(
   };
 }
 
+function addUtcDays(dateString, days) {
+  const date = new Date(
+    `${dateString}T00:00:00.000Z`
+  );
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function weekStartFor(dateString) {
+  const date = new Date(
+    `${dateString}T00:00:00.000Z`
+  );
+  const daysSinceMonday =
+    (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(
+    date.getUTCDate() - daysSinceMonday
+  );
+  return date.toISOString().slice(0, 10);
+}
+
+function normalizeReportNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number)
+    ? Math.trunc(number)
+    : 0;
+}
+
+const WEEKLY_DEPARTMENTS = {
+  "research-institute": {
+    name: "The Research Institute",
+    shortName: "Research Institute"
+  },
+  academy: {
+    name: "The Academy",
+    shortName: "Academy"
+  },
+  "health-commission": {
+    name: "The Health Commission",
+    shortName: "Health Commission"
+  },
+  "household-affairs": {
+    name: "The Household Affairs Office",
+    shortName: "Household Affairs"
+  },
+  "music-department": {
+    name: "The Music Department",
+    shortName: "Music Department"
+  },
+  "travel-department": {
+    name: "The Travel Department",
+    shortName: "Travel Department"
+  }
+};
+
+function weeklyFixtureIssues(data) {
+  const weekStart = weekStartFor(TODAY);
+  const project = data.projects[0];
+
+  return [
+    ...clone(data.issues),
+    {
+      id: "weekly-issue-research-1",
+      date: weekStart,
+      region: "research-institute",
+      projectId: project.id,
+      projectName: project.name,
+      title: "Research sprint review",
+      description: "Reviewed the deterministic report foundation.",
+      duration: 120,
+      moneyCostCents: 500,
+      createdAt: `${weekStart}T10:00:00.000Z`,
+      updatedAt: `${weekStart}T10:00:00.000Z`
+    },
+    {
+      id: "weekly-issue-academy-1",
+      date: weekStart,
+      region: "academy",
+      projectId: null,
+      projectName: null,
+      title: "Reading block",
+      description: "Studied weekly reporting requirements.",
+      duration: 120,
+      moneyCostCents: 400,
+      createdAt: `${weekStart}T09:00:00.000Z`,
+      updatedAt: `${weekStart}T09:00:00.000Z`
+    },
+    {
+      id: "weekly-issue-health-1",
+      date: addUtcDays(weekStart, 1),
+      region: "health-commission",
+      projectId: null,
+      projectName: null,
+      title: "Training record",
+      description: "Recorded a quiet health checkpoint.",
+      duration: 45,
+      moneyCostCents: 0,
+      createdAt: `${addUtcDays(weekStart, 1)}T08:00:00.000Z`,
+      updatedAt: `${addUtcDays(weekStart, 1)}T08:00:00.000Z`
+    },
+    {
+      id: "weekly-issue-household-1",
+      date: addUtcDays(weekStart, 2),
+      region: "household-affairs",
+      projectId: null,
+      projectName: null,
+      title: "Household supply note",
+      description: "Purchased supplies for the manor.",
+      duration: 0,
+      moneyCostCents: 2750,
+      createdAt: `${addUtcDays(weekStart, 2)}T08:30:00.000Z`,
+      updatedAt: `${addUtcDays(weekStart, 2)}T08:30:00.000Z`
+    }
+  ];
+}
+
+function weeklyFixtureProjects(data) {
+  const weekStart = weekStartFor(TODAY);
+
+  return [
+    ...clone(data.projects),
+    {
+      id: "weekly-project-completed",
+      name: "Weekly Report Foundation",
+      region: "chronicle-department",
+      status: "completed",
+      completedAt: `${addUtcDays(weekStart, 3)}T12:00:00.000Z`
+    },
+    {
+      id: "weekly-project-outside",
+      name: "Outside Report Range",
+      region: "academy",
+      status: "completed",
+      completedAt: `${addUtcDays(weekStart, -2)}T12:00:00.000Z`
+    }
+  ];
+}
+
+function weeklyFixtureMilestones(data) {
+  const weekStart = weekStartFor(TODAY);
+
+  return [
+    ...clone(data.milestones),
+    {
+      id: "weekly-milestone-completed",
+      title: "Weekly report reviewed",
+      projectId: data.projects[0].id,
+      projectName: data.projects[0].name,
+      targetDate: addUtcDays(weekStart, 4),
+      notes: "Ready for deterministic browser rendering.",
+      completed: true,
+      completedAt: `${addUtcDays(weekStart, 4)}T12:00:00.000Z`
+    },
+    {
+      id: "weekly-milestone-outside",
+      title: "Outside report milestone",
+      projectId: data.projects[0].id,
+      projectName: data.projects[0].name,
+      targetDate: addUtcDays(weekStart, -3),
+      notes: "Outside the selected week.",
+      completed: true,
+      completedAt: `${addUtcDays(weekStart, -3)}T12:00:00.000Z`
+    }
+  ];
+}
+
+function compareWeeklyDepartments(first, second) {
+  return (
+    second.durationMinutes - first.durationMinutes ||
+    second.issueCount - first.issueCount ||
+    second.moneyCostCents - first.moneyCostCents ||
+    first.name.localeCompare(second.name)
+  );
+}
+
+function compareWeeklyProjects(first, second) {
+  return (
+    second.durationMinutes - first.durationMinutes ||
+    second.issueCount - first.issueCount ||
+    second.moneyCostCents - first.moneyCostCents ||
+    first.name.localeCompare(second.name) ||
+    first.id.localeCompare(second.id)
+  );
+}
+
+function buildWeeklyReportResponse(data, date, today) {
+  const weekStart = weekStartFor(date);
+  const todayWeekStart = weekStartFor(today);
+
+  if (weekStart > todayWeekStart) {
+    return {
+      error: "Choose this week or an earlier week."
+    };
+  }
+
+  const weekEnd = addUtcDays(weekStart, 6);
+  const effectiveEndDate =
+    weekStart === todayWeekStart ? today : weekEnd;
+  const issues = weeklyFixtureIssues(data)
+    .filter(
+      issue =>
+        issue.date >= weekStart &&
+        issue.date <= effectiveEndDate
+    )
+    .map(issue => ({
+      ...issue,
+      durationMinutes:
+        normalizeReportNumber(issue.duration),
+      moneyCostCents:
+        normalizeReportNumber(issue.moneyCostCents)
+    }));
+  const daily = Array.from(
+    { length: 7 },
+    (_, index) => {
+      const day = addUtcDays(weekStart, index);
+      const included = day <= effectiveEndDate;
+      const dayIssues = included
+        ? issues.filter(issue => issue.date === day)
+        : [];
+
+      return {
+        date: day,
+        included,
+        issueCount: dayIssues.length,
+        durationMinutes: dayIssues.reduce(
+          (sum, issue) => sum + issue.durationMinutes,
+          0
+        ),
+        moneyCostCents: dayIssues.reduce(
+          (sum, issue) => sum + issue.moneyCostCents,
+          0
+        )
+      };
+    }
+  );
+  const departments = new Map();
+  const projects = new Map();
+
+  for (const issue of issues) {
+    const department =
+      WEEKLY_DEPARTMENTS[issue.region] || {
+        name: issue.region,
+        shortName: issue.region
+      };
+
+    if (!departments.has(issue.region)) {
+      departments.set(issue.region, {
+        id: issue.region,
+        name: department.name,
+        shortName: department.shortName,
+        issueCount: 0,
+        durationMinutes: 0,
+        moneyCostCents: 0
+      });
+    }
+
+    const departmentTotal = departments.get(issue.region);
+    departmentTotal.issueCount += 1;
+    departmentTotal.durationMinutes += issue.durationMinutes;
+    departmentTotal.moneyCostCents += issue.moneyCostCents;
+
+    if (issue.projectId) {
+      if (!projects.has(issue.projectId)) {
+        projects.set(issue.projectId, {
+          id: issue.projectId,
+          name: issue.projectName || "Untitled Project",
+          region: issue.region,
+          issueCount: 0,
+          durationMinutes: 0,
+          moneyCostCents: 0
+        });
+      }
+
+      const projectTotal = projects.get(issue.projectId);
+      projectTotal.issueCount += 1;
+      projectTotal.durationMinutes += issue.durationMinutes;
+      projectTotal.moneyCostCents += issue.moneyCostCents;
+    }
+  }
+
+  const departmentList = Array.from(departments.values())
+    .sort(compareWeeklyDepartments);
+  const projectList = Array.from(projects.values())
+    .sort(compareWeeklyProjects);
+  const completedProjects = weeklyFixtureProjects(data)
+    .filter(project => {
+      const completedDate = String(project.completedAt || "").slice(0, 10);
+      return completedDate >= weekStart && completedDate <= effectiveEndDate;
+    })
+    .map(project => ({
+      id: project.id,
+      name: project.name,
+      region: project.region,
+      status: project.status,
+      completedAt: project.completedAt
+    }))
+    .sort(
+      (first, second) =>
+        second.completedAt.localeCompare(first.completedAt) ||
+        first.name.localeCompare(second.name) ||
+        first.id.localeCompare(second.id)
+    );
+  const completedMilestones = weeklyFixtureMilestones(data)
+    .filter(milestone => {
+      const completedDate = String(milestone.completedAt || "").slice(0, 10);
+      return completedDate >= weekStart && completedDate <= effectiveEndDate;
+    })
+    .map(milestone => ({
+      id: milestone.id,
+      title: milestone.title,
+      projectId: milestone.projectId,
+      projectName: milestone.projectName,
+      targetDate: milestone.targetDate,
+      completedAt: milestone.completedAt,
+      notes: milestone.notes || ""
+    }))
+    .sort(
+      (first, second) =>
+        second.completedAt.localeCompare(first.completedAt) ||
+        String(first.projectName || "").localeCompare(String(second.projectName || "")) ||
+        first.title.localeCompare(second.title) ||
+        first.id.localeCompare(second.id)
+    );
+  const totals = {
+    issues: issues.length,
+    durationMinutes: issues.reduce(
+      (sum, issue) => sum + issue.durationMinutes,
+      0
+    ),
+    moneyCostCents: issues.reduce(
+      (sum, issue) => sum + issue.moneyCostCents,
+      0
+    ),
+    activeDepartments: departmentList.length,
+    activeProjects: projectList.length,
+    projectsCompleted: completedProjects.length,
+    milestonesCompleted: completedMilestones.length
+  };
+  let headline = "A Quiet Week Across the Manor";
+
+  if (totals.issues > 0 && departmentList.length === 1) {
+    headline = `${departmentList[0].name} Carried the Week`;
+  } else if (totals.issues > 0 && departmentList.length > 1) {
+    const first = departmentList[0];
+    const second = departmentList[1];
+    const uniqueLeader =
+      first.durationMinutes !== second.durationMinutes ||
+      first.issueCount !== second.issueCount ||
+      first.moneyCostCents !== second.moneyCostCents;
+    headline = uniqueLeader
+      ? `${first.name} Led the Week`
+      : "A Week of Work Across the Manor";
+  }
+
+  const highlights = [];
+  const busiestDay = daily
+    .filter(day => day.included && day.issueCount > 0)
+    .sort(
+      (first, second) =>
+        second.issueCount - first.issueCount ||
+        first.date.localeCompare(second.date)
+    )[0];
+
+  if (busiestDay) {
+    highlights.push(`${busiestDay.date} carried ${busiestDay.issueCount} records.`);
+  }
+
+  if (departmentList[0]?.durationMinutes > 0) {
+    highlights.push(
+      `${departmentList[0].name} recorded the most time at ${departmentList[0].durationMinutes} minutes.`
+    );
+  }
+
+  if (completedProjects.length > 0) {
+    highlights.push(`${completedProjects.length} project reached completion.`);
+  }
+
+  if (completedMilestones.length > 0) {
+    highlights.push(`${completedMilestones.length} milestone was completed.`);
+  }
+
+  return {
+    date,
+    today,
+    weekStart,
+    weekEnd,
+    effectiveEndDate,
+    status:
+      weekStart === todayWeekStart ? "in-progress" : "complete",
+    presentation: {
+      headline,
+      lead:
+        `The manor recorded ${totals.issues} affairs across ${totals.activeDepartments} departments, ` +
+        `comprising ${totals.durationMinutes} minutes of activity and ${totals.moneyCostCents} cents in recorded expenditure.`,
+      highlights: highlights.slice(0, 4)
+    },
+    totals,
+    daily,
+    departments: departmentList,
+    projects: projectList,
+    completedProjects,
+    completedMilestones,
+    recentIssues: issues
+      .slice()
+      .sort(
+        (first, second) =>
+          second.date.localeCompare(first.date) ||
+          String(second.createdAt || "").localeCompare(String(first.createdAt || "")) ||
+          first.id.localeCompare(second.id)
+      )
+      .slice(0, 5)
+  };
+}
+
 function buildPresentation(statistics) {
   let headline;
 
@@ -1129,6 +1542,63 @@ async function handleApi(route, data, state) {
     );
   }
 
+  if (path === "/api/weekly-report") {
+    state.weeklyReportRequests += 1;
+
+    if (state.weeklyReportStatus) {
+      return json(
+        route,
+        {
+          error:
+            state.weeklyReportError ||
+            "Could not open the Weekly Estate Report."
+        },
+        state.weeklyReportStatus
+      );
+    }
+
+    const date = url.searchParams.get("date");
+    const today = url.searchParams.get("today");
+
+    if (
+      !isValidDateString(date) ||
+      !isValidDateString(today)
+    ) {
+      return json(
+        route,
+        {
+          error:
+            "Valid selected and local today dates are required."
+        },
+        400
+      );
+    }
+
+    if (state.weeklyReportDelay) {
+      await new Promise(resolve => {
+        setTimeout(
+          resolve,
+          state.weeklyReportDelay(
+            date,
+            today
+          )
+        );
+      });
+    }
+
+    const response = buildWeeklyReportResponse(
+      data,
+      date,
+      today
+    );
+
+    return json(
+      route,
+      response,
+      response.error ? 400 : 200
+    );
+  }
+
   if (path === "/api/issues") {
     return handleCollection(route, request, data, "issues", "issue");
   }
@@ -1189,6 +1659,13 @@ async function installMockApi(page, options = {}) {
       options.plannerStatus || null,
     plannerError:
       options.plannerError || null,
+    weeklyReportStatus:
+      options.weeklyReportStatus || null,
+    weeklyReportError:
+      options.weeklyReportError || null,
+    weeklyReportDelay:
+      options.weeklyReportDelay || null,
+    weeklyReportRequests: 0,
     editions: null
   };
 

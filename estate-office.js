@@ -314,6 +314,13 @@ function notifyChronicleOfOfficeRecordChange() {
   ) {
     window.refreshManorChronicle();
   }
+
+  if (
+    typeof window.refreshWeeklyEstateReport ===
+    "function"
+  ) {
+    window.refreshWeeklyEstateReport();
+  }
 }
 
 function populateProjectSelect(

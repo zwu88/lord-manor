@@ -604,6 +604,162 @@
       id="chronicle-department-view"
       hidden
     >
+      <section
+        id="weekly-estate-report"
+        class="weekly-report"
+        aria-labelledby="weekly-report-heading"
+      >
+        <div class="section-heading heading-with-action">
+          <div>
+            <p class="label">Weekly administration</p>
+            <h2 id="weekly-report-heading">
+              Weekly Estate Report
+            </h2>
+
+            <p class="section-description">
+              A deterministic Monday–Sunday account of recorded
+              Issues, department activity, project work, and
+              council conclusions.
+            </p>
+          </div>
+
+          <button
+            id="weekly-report-print"
+            type="button"
+          >
+            Print Report
+          </button>
+        </div>
+
+        <div
+          class="weekly-report-controls"
+          aria-label="Weekly report controls"
+        >
+          <button
+            id="weekly-report-previous"
+            type="button"
+          >
+            Previous Week
+          </button>
+
+          <label class="weekly-report-date-label">
+            Report date
+            <input
+              id="weekly-report-date"
+              type="date"
+            >
+          </label>
+
+          <button
+            id="weekly-report-this-week"
+            type="button"
+          >
+            This Week
+          </button>
+
+          <button
+            id="weekly-report-next"
+            type="button"
+          >
+            Next Week
+          </button>
+
+          <button
+            id="weekly-report-refresh"
+            type="button"
+          >
+            Refresh Report
+          </button>
+        </div>
+
+        <div class="weekly-report-status-panel">
+          <p
+            id="weekly-report-status"
+            class="weekly-report-status"
+            role="status"
+          >
+            Opening the Weekly Estate Report...
+          </p>
+
+          <p
+            id="weekly-report-range"
+            class="section-description"
+          ></p>
+
+          <p
+            id="weekly-report-error"
+            class="chronicle-error"
+            role="alert"
+            hidden
+          ></p>
+        </div>
+
+        <div
+          id="weekly-report-summary"
+          class="weekly-report-summary"
+        ></div>
+
+        <section class="weekly-report-narrative">
+          <h3 id="weekly-report-headline">
+            A Quiet Week Across the Manor
+          </h3>
+
+          <p
+            id="weekly-report-lead"
+            class="chronicle-lead"
+          ></p>
+
+          <div
+            id="weekly-report-highlights"
+            class="weekly-report-highlights"
+          ></div>
+        </section>
+
+        <section class="weekly-report-section">
+          <h3>Daily Record</h3>
+          <div
+            id="weekly-report-daily"
+            class="weekly-report-daily"
+          ></div>
+        </section>
+
+        <section class="weekly-report-section">
+          <h3>Department Activity</h3>
+          <div
+            id="weekly-report-departments"
+            class="weekly-report-list"
+          ></div>
+        </section>
+
+        <section class="weekly-report-section">
+          <h3>Project Activity</h3>
+          <div
+            id="weekly-report-projects"
+            class="weekly-report-list"
+          ></div>
+        </section>
+
+        <section class="weekly-report-section weekly-report-council">
+          <h3>Council Conclusions</h3>
+          <div
+            id="weekly-report-completed-projects"
+            class="weekly-report-list"
+          ></div>
+          <div
+            id="weekly-report-completed-milestones"
+            class="weekly-report-list"
+          ></div>
+        </section>
+
+        <section class="weekly-report-section">
+          <h3>Recent Records</h3>
+          <div
+            id="weekly-report-recent"
+            class="weekly-report-list"
+          ></div>
+        </section>
+      </section>
+
       <div class="section-heading">
         <p class="label">The complete record</p>
         <h2>All Issues of the Manor</h2>
@@ -1154,6 +1310,7 @@
 <script src="departments.js"></script>
 <script src="treasury.js"></script>
 <script src="chronicle.js"></script>
+<script src="weekly-report.js"></script>
 <script src="script.js"></script>
 <script src="estate-office.js"></script>
 </body>
